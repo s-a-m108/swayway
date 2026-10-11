@@ -1,0 +1,743 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>SwayWay</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --ink:#1d1c21; --muted:#6c6a72; --line:#e3e1e7;
+  --purple:#47286b; --purple-2:#5a3485; --purple-btn:#4b2a76; --purple-text:#5b3391;
+  --lav-1:#c8b2e7; --lav-3:#eee7f8; --lav-btn:#ece4f7;
+  --yellow:#f7e57f; --yellow-ink:#3a3200; --green-soft:#dbe9d3; --green:#4c7a3f; --bubble:#7a7874;
+  --head:"Manrope", "Helvetica Neue", Arial, sans-serif;
+  --body:"Inter", "Helvetica Neue", Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;letter-spacing:.005em}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--lav-1);outline-offset:2px}
+
+.shell{display:flex;flex-direction:column;gap:8px;max-width:1028px;margin:0 auto;padding-inline:24px;padding-block:20px 64px}
+.rail{display:flex;align-items:center}
+.brand{font-family:var(--head);font-weight:700;font-size:30px;letter-spacing:-.035em;padding:4px 0 8px;display:flex;align-items:baseline}
+.brand span{color:var(--purple-text)}
+
+main{width:100%;min-width:0;display:flex;flex-direction:column;gap:22px}
+.top{display:flex;flex-direction:column;gap:6px;padding-top:6px}
+.pill-y{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;background:var(--yellow);color:var(--yellow-ink);font-weight:500;font-size:14px;padding:5px 14px;border-radius:999px}
+.pill-y.open{background:#d9f0d4;color:#1f6b33}
+.pill-y::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);letter-spacing:-.03em;line-height:1.1;margin:6px 0 0;text-wrap:balance}
+.sub{color:var(--muted);font-size:17px;margin:0;max-width:none}
+
+.tracker{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:8px 0}
+.tk{display:flex;align-items:center;gap:12px;background:none;border:0;padding:4px 8px 4px 4px;cursor:pointer;color:var(--muted);font-weight:500;font-size:17px}
+.tk .c{width:46px;height:46px;border-radius:50%;border:2px dashed #b9b7bd;display:grid;place-items:center}
+.tk .c svg{width:20px;height:20px}
+.tk.on{color:var(--purple-text);font-weight:600}.tk.on .c{border:2px solid var(--purple-text)}
+.tk.done{color:var(--ink)}.tk.done .c{border:2px solid var(--purple-text);color:var(--purple-text)}
+.tk[disabled]{cursor:default}
+.arrow{color:#9c9aa1;width:20px;height:20px;flex:none}
+
+.steps{display:flex;flex-direction:column}
+.step{position:relative}
+.step .tab{width:100%;box-sizing:border-box;display:flex;align-items:center;gap:12px;text-align:left;border:0;cursor:pointer;font-family:var(--body);font-size:20px;font-weight:600;letter-spacing:-.005em;color:#3a2160;padding:16px 24px}
+.step .tab .n{font-variant-numeric:tabular-nums;font-weight:500;font-size:18px;color:#6b4a9b;min-width:14px}
+.step .tab .sum{flex:1;min-width:0;color:var(--muted);font-weight:400;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.step .tab .edit{color:var(--purple-text);font-size:15px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.step[data-state="done"]{margin-bottom:10px}
+.step[data-state="done"] .tab{background:var(--bg);border:1.5px solid var(--line);border-radius:18px}
+.step[data-state="upcoming"]{margin-top:-26px;margin-inline:calc(var(--i,1) * 11px)}
+.step[data-state="upcoming"] .tab{cursor:default;border-radius:0 0 22px 22px;padding-top:36px;padding-bottom:16px}
+.step[data-state="upcoming"][data-open] .tab{cursor:pointer}
+.step[data-state="upcoming"][data-i="1"] .tab{background:#c7b1e9}
+.step[data-state="upcoming"][data-i="2"] .tab{background:#ddcff2}
+.step[data-state="upcoming"][data-i="3"] .tab{background:#efe9f8}
+.step[data-state="upcoming"][data-i="1"]{z-index:3}.step[data-state="upcoming"][data-i="2"]{z-index:2}.step[data-state="upcoming"][data-i="3"]{z-index:1}
+.step[data-state="active"] .tab,.step:not([data-state="done"]) .tab .edit,.step:not([data-state="done"]) .tab .sum{display:none}
+.step .body{display:none}
+.step[data-state="active"] .body{display:flex}
+.step[data-state="active"]{z-index:5}
+
+.card{background:var(--purple);color:#fff;border-radius:26px;padding:30px 32px;flex-direction:column;gap:18px}
+.card h2{font-family:var(--head);font-weight:600;font-size:28px;letter-spacing:-.035em;margin:0}
+.card .lead{margin:-8px 0 0;color:#d9cdea;font-size:15.5px}
+.bar{position:relative;display:flex;align-items:center;background:#fff;border-radius:999px;padding:6px 6px 6px 22px;border:3px solid #fff;box-shadow:0 0 0 1px rgba(255,255,255,.4)}
+.bar:focus-within{border-color:var(--lav-1)}
+.bar svg.pin{width:20px;height:20px;color:var(--purple);flex:none;margin-right:10px}
+.bar input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:18px;color:var(--ink);padding:10px 0}
+.bar input::placeholder{color:#8b8990}
+.go{flex:none;width:50px;height:50px;border-radius:50%;border:0;background:var(--purple);color:#fff;display:grid;place-items:center;cursor:pointer}
+.go svg{width:20px;height:20px}
+.or{display:flex;align-items:center;gap:14px;color:#c4b5d9;font-size:15px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.22)}
+.rows{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:var(--purple-2);border:2px solid transparent;border-radius:12px;padding:16px 20px;color:#fff;text-decoration:none;cursor:pointer}
+.row:hover{border-color:rgba(255,255,255,.25)}
+.row .ic{width:44px;height:44px;border-radius:6px;display:grid;place-items:center;font-weight:600;font-size:20px;flex:none}
+.ic.y{background:var(--yellow);color:var(--yellow-ink)} .ic.g{background:var(--green-soft);color:var(--green)}
+.ic svg{width:22px;height:22px}
+.row .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.row .t1{font-size:19px;font-weight:500}
+.row .t2{color:#e2d8ef;font-size:15.5px}
+.ic.w{background:#fff;color:var(--purple)}
+.row .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12.5px;font-weight:500;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:#efe7fa}
+.tag.ed{background:var(--yellow);color:var(--yellow-ink)}
+.row .mi{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;align-self:flex-start;background:rgba(255,255,255,.14);padding:3px 10px;border-radius:999px}
+.tag.ok{background:#e3f1dc;color:#2f5a26}
+.tag.no{background:#f6dede;color:#7a2323}
+.tag.unk{background:transparent;border:1px dashed rgba(255,255,255,.35);color:#d9cdea}
+.vc-filters{display:flex;flex-direction:column;gap:10px}
+.fbar{display:flex;flex-wrap:wrap;gap:8px}
+.dd{position:relative}
+.ddbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;border-radius:999px;padding:9px 14px 9px 18px;cursor:pointer;font-size:15.5px;font-weight:500}
+.ddbtn .chev{width:18px;height:18px;transition:transform .15s}
+.ddbtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.ddbtn.on{background:#fff;color:var(--purple);border-color:#fff}
+.ddbtn .cnt{min-width:20px;height:20px;border-radius:999px;background:var(--yellow);color:var(--yellow-ink);font-size:12px;font-weight:700;display:inline-grid;place-items:center;padding:0 6px}
+.ddmenu{position:absolute;top:calc(100% + 8px);left:0;z-index:30;min-width:250px;background:#fff;color:var(--ink);border-radius:16px;padding:6px;box-shadow:0 16px 40px rgba(20,8,40,.3);display:flex;flex-direction:column}
+.ddmenu[hidden]{display:none}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;cursor:pointer;font-size:15.5px;color:var(--ink)}
+.opt .ot{display:flex;flex-direction:column}
+.opt small{font-size:13px;color:var(--muted)}
+.msub{margin:8px 12px 2px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hsearch{margin:6px 6px 4px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:15px;color:var(--ink);width:calc(100% - 12px)}
+.hsearch:focus{outline:none;border-color:var(--purple-text)}
+.hlist{max-height:320px;overflow-y:auto;min-width:300px}
+.opt small.hc{display:inline;margin-left:6px}
+.mnote{margin:4px 12px 8px;font-size:13px;color:var(--muted)}
+.opt:hover{background:var(--lav-3)}
+.opt .box{width:20px;height:20px;border-radius:6px;border:2px solid var(--purple-text);flex:none;display:grid;place-items:center}
+.opt[aria-pressed="true"] .box{background:var(--purple-text)}
+.opt[aria-pressed="true"] .box::after{content:"";width:9px;height:5px;border:2.5px solid #fff;border-top:0;border-right:0;transform:translate(0,-1px) rotate(-45deg)}
+.opt.radio .box{border-radius:50%}
+.opt.radio[aria-pressed="true"] .box::after{width:8px;height:8px;border:0;border-radius:50%;background:#fff;transform:none}
+.fcount{font-size:14px;color:#d9cdea;display:flex;gap:12px;align-items:center}
+.fcount button{background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font-size:14px;padding:0}
+.know-h{font-family:var(--head);font-weight:600;font-size:20px;letter-spacing:-.02em;margin:10px 0 0}
+.know{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.know li{background:var(--lav-3);border-radius:14px;padding:14px 16px;font-size:15px;color:#3b3546;line-height:1.45}
+.know b{display:block;color:var(--purple-text);font-size:15.5px;margin-bottom:2px}
+.vc-access{color:#d9cdea;font-size:13.5px;margin:0}
+.vc-access a{color:#fff}
+.vc-status{color:#d9cdea;font-size:15.5px;margin:0;padding:6px 2px}
+.vc-status a{color:#fff}
+.row .ex{width:20px;height:20px;opacity:.85;flex:none}
+.fine{font-size:13.5px;color:#c9bbdd;margin:0}
+.lbl{font-size:15px;font-weight:500;color:#e2d8ef;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;border-radius:999px;padding:8px 16px;cursor:pointer;font-size:15px;font-weight:500}
+.chip[aria-pressed="true"]{background:#fff;color:var(--purple);border-color:#fff}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{background:var(--purple-2);border:2px solid transparent;border-radius:14px;padding:18px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;color:#fff;font-size:16px;font-weight:500}
+.vpick{display:flex;flex-direction:column;gap:10px}
+.vsearch{width:100%;padding:12px 16px;border-radius:999px;border:0;font:inherit;font-size:16px;color:var(--ink)}
+.vsearch:focus{outline:3px solid var(--lav-1)}
+.vlist{max-height:460px;overflow-y:auto;background:rgba(255,255,255,.06);border-radius:16px;padding:6px 14px 14px}
+.vcat{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#cbbbe0;margin:14px 0 8px;display:flex;gap:8px;align-items:center}
+.vcat .e{font-size:18px;letter-spacing:0}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.vtile{background:var(--purple-2);border:2px solid transparent;border-radius:14px;padding:12px 8px;min-height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:#fff;font-size:14px;font-weight:500;text-align:center;line-height:1.2}
+.vtile .emo{font-size:28px;line-height:1;position:relative;display:inline-block}
+.vtile .badge{position:absolute;right:-12px;bottom:-6px;font-size:15px;line-height:1;background:#fff;border-radius:999px;padding:2px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.vtile .vn{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vtile:hover{border-color:rgba(255,255,255,.3)}
+.vtile[aria-pressed="true"]{background:#fff;color:var(--purple);border-color:#fff}
+.vchips{display:flex;flex-wrap:wrap;gap:6px}
+.vchip{border:1.5px solid rgba(255,255,255,.28);background:transparent;color:#fff;border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+.vchip[aria-pressed="true"]{background:#fff;color:var(--purple);border-color:#fff;font-weight:600}
+.tiles.more{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.tile.sm{padding:12px 6px;font-size:14px;gap:6px;text-align:center}
+.tile .emo{font-size:28px;line-height:1}
+.tile svg{width:34px;height:34px}
+.tile[aria-pressed="true"]{background:#fff;color:var(--purple);border-color:#fff}
+.btn{border:0;border-radius:999px;padding:16px 28px;font-size:18px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.btn svg{width:20px;height:20px}
+.btn.white{background:#fff;color:var(--purple-text);align-self:center;min-width:min(100%,420px)}
+.btn.purple{background:var(--purple-btn);color:#fff}
+.btn.lav{background:var(--lav-btn);color:var(--purple-text)}
+.err{background:#fff;color:#a12a2a;border-radius:10px;padding:8px 12px;font-size:14.5px;margin:0}
+
+.inner{background:#fff;color:var(--ink);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 40px rgba(20,8,40,.25)}
+.badge{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);color:var(--green);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:999px}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.inner h3 .h3icon{display:inline-block;font-size:.9em}
+.inner h3{font-family:var(--head);font-weight:700;font-size:clamp(26px,3.6vw,36px);letter-spacing:-.035em;line-height:1.08;margin:0;text-wrap:balance}
+.route{display:grid;grid-template-columns:22px 1fr;gap:4px 14px;font-size:16px}
+.route .d{width:14px;height:14px;border-radius:50%;border:3px solid var(--purple-text);justify-self:center;margin-top:4px}
+.route .d.e{background:var(--purple-text)}
+.route .r{width:2px;justify-self:center;background:repeating-linear-gradient(var(--lav-1) 0 5px,transparent 5px 10px);min-height:30px}
+.route .m{color:var(--muted);font-size:14.5px;align-self:center}
+.route .a{min-width:0;overflow-wrap:anywhere}
+.map{border-radius:16px;overflow:hidden;aspect-ratio:16/10;max-width:100%;background:var(--lav-3);border:1.5px solid var(--line)}
+.map iframe{width:100%;height:100%;border:0;display:block}
+.rlegs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.rlegs li{display:flex;align-items:center;gap:10px;font-size:15px}
+.rlegs .sw{width:28px;height:6px;border-radius:3px;flex:none}
+.rlegs .li{font-size:22px}
+.rlegs small{display:block;color:var(--muted);font-size:13px}
+.rsteps li.lh{list-style:none;margin-left:-22px;font-weight:700;margin-top:6px}
+.legicon span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.rsum{margin:0;font-weight:600;color:var(--purple-text);font-size:15px}
+.rdetails summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.rsteps{margin:10px 0 0;padding-left:22px;max-height:260px;overflow:auto;font-size:14.5px;color:#3b3546;display:flex;flex-direction:column;gap:6px}
+.rsteps small{color:var(--muted);margin-left:8px}
+.map .leaflet-container{height:100%;width:100%}
+.facts{display:flex;flex-wrap:wrap;gap:10px}
+.fact{background:var(--lav-3);border-radius:12px;padding:10px 14px;flex:1 1 160px}
+.fact .k{font-size:12.5px;color:var(--muted);font-weight:500}
+.fact .v{font-weight:600}
+.tip{margin:0;color:var(--muted);font-size:15px}
+.acts{display:flex;flex-wrap:wrap;gap:10px}
+.acts .btn{flex:1 1 200px;padding:14px 20px;font-size:16.5px}
+
+.sect{display:flex;flex-direction:column;gap:14px;margin-top:48px}
+.sect h2{font-family:var(--head);font-weight:600;font-size:28px;letter-spacing:-.03em;margin:0}
+.sect .sub{font-size:16px}
+.msgcard{border:1.5px solid var(--line);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 6px 24px rgba(0,0,0,.05)}
+.bubble{white-space:pre-line;align-self:flex-end;max-width:min(100%,560px);background:var(--bubble);color:#fff;border-radius:18px;padding:12px 18px;font-size:17px;overflow-wrap:anywhere}
+.msgcard .acts{justify-content:flex-end}
+.msgcard .acts .btn{flex:0 0 auto}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.checks li{display:flex;gap:14px;align-items:flex-start;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px}
+.checks .cb{width:22px;height:22px;border-radius:6px;border:2px solid var(--purple-text);flex:none;margin-top:1px;cursor:pointer;background:#fff;display:grid;place-items:center;padding:0}
+.checks .cb[aria-pressed="true"]{background:var(--purple-text)}
+.checks .cb svg{width:14px;height:14px;color:#fff}
+.checks a{color:var(--purple-text);font-weight:500}
+footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
+
+.sugg{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;margin:0;padding:6px;list-style:none;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(20,8,40,.25);max-height:300px;overflow-y:auto}
+.sugg li{padding:10px 14px;border-radius:10px;cursor:pointer;display:flex;flex-direction:column}
+.sugg .l1{font-weight:500}
+.sugg .l2{font-size:13.5px;color:var(--muted)}
+.sugg li[aria-selected="true"],.sugg li:hover{background:var(--lav-3)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-weight:500;z-index:20}
+
+@media (max-width:900px){
+  .shell{padding-inline:16px}
+  .brand{padding:4px 0;font-size:26px}
+  .tracker .arrow{display:none}
+  .tk{font-size:0;padding:0;gap:0}
+  .tracker{gap:12px}
+  .card{padding:22px 18px;border-radius:22px}
+  .tiles{grid-template-columns:repeat(2,1fr)}
+  .row{padding:14px}
+  .row .t1{font-size:17px}
+  .bar input{font-size:16px}
+}
+@media (prefers-reduced-motion:no-preference){.step[data-state="active"] .body{animation:in .3s ease-out}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+</style></head><body>
+
+<div class="shell">
+  <div class="rail"><div class="brand">Sway<span>Way</span></div></div>
+
+  <main id="plan">
+    <div class="top">
+      <span class="pill-y" id="count">Election Day is Nov 3</span>
+      <h1>Get to the polls your way</h1>
+      <p class="sub">Pick your polling place, choose how you'll get there, and get directions. Now available in the San Francisco Bay Area.</p>
+    </div>
+
+    <nav class="tracker" aria-label="Steps">
+      <button class="tk" data-go="1" type="button"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>Address</button>
+      <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <button class="tk" data-go="2" type="button"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V10M18 21V10M3 10l9-6 9 6M10 21v-5h4v5"/></svg></span>Polling Location</button>
+      <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <button class="tk" data-go="3" type="button"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg></span>Transportation</button>
+      <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <button class="tk" data-go="4" type="button"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8z"/></svg></span>Directions</button>
+    </nav>
+
+    <div class="steps">
+      <section class="step" data-step="1">
+        <button class="tab" type="button" data-go="1"><span class="n">1</span>Enter your address<span class="sum" id="sum1"></span><span class="edit">Edit</span></button>
+        <div class="body card">
+          <h2>Where are you starting?</h2>
+          <form class="bar" id="addrForm" autocomplete="off">
+            <svg class="pin" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.3 7 13 7 13s7-7.7 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+            <input type="text" id="addr" name="sw-start" autocomplete="off" placeholder="Enter your Bay Area address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg" aria-label="Your address">
+            <button class="go" type="submit" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            <ul class="sugg" id="sugg" role="listbox" hidden></ul>
+          </form>
+          <p class="err" id="err1" hidden>SwayWay only covers the nine Bay Area counties right now. Enter an address there, including the city or ZIP.</p>
+          <p class="fine">Type your street, then your city or ZIP. Covers the nine Bay Area counties.</p>
+        </div>
+      </section>
+
+      <section class="step" data-step="2">
+        <button class="tab" type="button" data-go="2"><span class="n">2</span>Find your polling location<span class="sum" id="sum2"></span><span class="edit">Edit</span></button>
+        <div class="body card">
+          <h2>Where do you vote?</h2>
+          <p class="lead" id="placeLead">Pick where you'll vote.</p>
+          <div class="vc-filters" id="vcFilters" hidden>
+            <div class="fbar"><div class="dd" data-dd="access"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Accessibility<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="wheelchair" aria-pressed="false"><span class="box"></span>Wheelchair access</button><button class="opt" type="button" data-f="restroom" aria-pressed="false"><span class="box"></span>Accessible restroom</button><button class="opt" type="button" data-f="accparking" aria-pressed="false"><span class="box"></span>Accessible parking</button><button class="opt" type="button" data-f="curbside" aria-pressed="false" hidden><span class="box"></span>Curbside voting</button></div></div><div class="dd" data-dd="travel"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Getting there<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="parking" aria-pressed="false"><span class="box"></span>Car parking</button><button class="opt" type="button" data-f="transit" aria-pressed="false"><span class="box"></span>Transit nearby</button><button class="opt" type="button" data-f="bike" aria-pressed="false"><span class="box"></span>Bike parking</button></div></div><div class="dd" data-dd="services"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Services<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="dropoff" aria-pressed="false"><span class="box"></span>Ballot drop-off</button><button class="opt" type="button" data-f="sdr" aria-pressed="false"><span class="box"></span>Same-day registration</button><button class="opt" type="button" data-f="early" aria-pressed="false"><span class="box"></span>Early voting</button></div></div><div class="dd" data-dd="crowds"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Wait and crowds<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="manydays" aria-pressed="false"><span class="box"></span><span class="ot">Open 4+ days before Election Day<small>More days to vote means smaller crowds</small></span></button><button class="opt" type="button" data-f="weekend" aria-pressed="false"><span class="box"></span><span class="ot">Open on a weekend<small>Vote on a Saturday or Sunday</small></span></button></div></div><div class="dd" data-dd="comfort"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Comfort<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="restroomnear" aria-pressed="false"><span class="box"></span><span class="ot">Restroom nearby</span></button><button class="opt" type="button" data-f="seating" aria-pressed="false"><span class="box"></span><span class="ot">Seating nearby</span></button><button class="opt" type="button" data-f="water" aria-pressed="false"><span class="box"></span><span class="ot">Drinking water nearby</span></button></div></div><div class="dd" data-dd="special"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Special requests<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-f="quiet" aria-pressed="false"><span class="box"></span><span class="ot">Quiet</span></button><button class="opt" type="button" data-f="elder" aria-pressed="false"><span class="box"></span><span class="ot">Elder friendly</span></button><button class="opt" type="button" data-f="translators" aria-pressed="false"><span class="box"></span><span class="ot">Translators available</span></button></div></div><div class="dd" data-dd="avoid"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Avoid a neighborhood<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><input type="search" class="hsearch" id="hoodSearch" placeholder="Search neighborhoods" aria-label="Search neighborhoods" autocomplete="off"><div id="hoodOpts" class="hlist"></div></div></div><div class="dd" data-dd="building"><button class="ddbtn" type="button" aria-expanded="false" aria-haspopup="true">Building<span class="cnt" hidden></span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ddmenu" hidden><button class="opt" type="button" data-bt="Cemetery" aria-pressed="false"><span class="box"></span><span class="ot">Cemetery</span></button><button class="opt" type="button" data-bt="Community center" aria-pressed="false"><span class="box"></span><span class="ot">Community or recreation center</span></button><button class="opt" type="button" data-bt="Government building" aria-pressed="false"><span class="box"></span><span class="ot">Government building</span></button><button class="opt" type="button" data-bt="Library" aria-pressed="false"><span class="box"></span><span class="ot">Library</span></button><button class="opt" type="button" data-bt="Mobile vote center" aria-pressed="false"><span class="box"></span><span class="ot">Mobile vote center</span></button><button class="opt" type="button" data-bt="Place of worship" aria-pressed="false"><span class="box"></span><span class="ot">Place of worship</span></button><button class="opt" type="button" data-bt="Public safety building" aria-pressed="false"><span class="box"></span><span class="ot">Police or fire station</span></button><button class="opt" type="button" data-bt="School" aria-pressed="false"><span class="box"></span><span class="ot">School</span></button><button class="opt" type="button" data-bt="Senior center" aria-pressed="false"><span class="box"></span><span class="ot">Senior center</span></button></div></div></div>
+            <div class="fcount" id="vcCount"></div>
+          </div>
+          <div class="rows" id="vcList"></div>
+          <p class="vc-access" id="vcAccess" hidden></p>
+          <p class="vc-status" id="vcNote" hidden></p>
+        </div>
+      </section>
+
+      <section class="step" data-step="3">
+        <button class="tab" type="button" data-go="3"><span class="n">3</span>Choose your transportation method<span class="sum" id="sum3"></span><span class="edit">Edit</span></button>
+        <div class="body card">
+          <h2>How are you getting there?</h2>
+          <p class="lead">Pick one or more. Mixing ways, like bike + train, works too.</p>
+          <div id="modes" hidden></div>
+          <div class="vpick"><input type="search" id="vSearch" class="vsearch" placeholder="Search 290+ ways: rideshare, wheelchair, ferry, hot-air balloon…" aria-label="Search ways to get there" autocomplete="off"><div class="vlist" id="moreModes"></div></div>
+          <p class="lbl">When do you want to go?</p>
+          <div class="chips" id="times">
+            <button class="chip" type="button" data-t="morning" aria-pressed="false">Morning</button>
+            <button class="chip" type="button" data-t="midday" aria-pressed="true">Afternoon</button>
+            <button class="chip" type="button" data-t="evening" aria-pressed="false">Evening</button>
+          </div>
+          <button class="btn white" type="button" id="planBtn">Plan my trip</button>
+        </div>
+      </section>
+
+      <section class="step" data-step="4">
+        <button class="tab" type="button" data-go="4"><span class="n">4</span>Get directions</button>
+        <div class="body card" id="planCard"></div>
+      </section>
+    </div>
+
+    <div id="after" hidden>
+      <div class="sect">
+        <h2>Before you head out</h2>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="sect">
+        <h2>Rally your people</h2>
+        <div class="msgcard">
+          <div class="bubble" id="bubble"></div>
+          <div class="acts">
+            <button class="btn lav" type="button" id="shuffle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>Shuffle</button>
+            <button class="btn purple" type="button" id="copyMsg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>Copy message</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Confirm your polling place and hours with your state or local election office. SwayWay is nonpartisan and free, but does intend to make money. This information may not be accurate.</footer>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="us-data.js"></script>
+<script src="hoods.js"></script>
+<script src="vehicles.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const STATES={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico",GU:"Guam",VI:"U.S. Virgin Islands",AS:"American Samoa",MP:"Northern Mariana Islands"};
+const OFFICIAL={CA:{lookup:"https://www.sos.ca.gov/elections/polling-place",hours:"7:00 AM – 8:00 PM"},MA:{lookup:"https://www.sec.state.ma.us/WhereDoIVoteMA/WhereDoIVote",hours:"7:00 AM – 8:00 PM"}};
+const MODE={walking:"walk",transit:"transit ride",driving:"drive",bicycling:"bike ride"};
+const MODE_CAP={walking:"Walking",transit:"Public transit",driving:"Driving",bicycling:"Biking"};
+const APPLE={walking:"w",transit:"r",driving:"d",bicycling:"w"};
+const TIME={morning:"Morning",midday:"Afternoon",evening:"Evening"};
+const TIP={
+  morning:"Lines often build right at opening as people vote before work. Arriving after the first rush tends to be smoother.",
+  midday:"Early afternoon is often the calmest stretch at many polling places, between the morning and after-work rushes.",
+  evening:"After work can be the busiest window. Leave time to spare. If you're in line when polls close, stay in line."
+};
+const S={step:1,max:1,mine:"",mode:"walking",time:"midday",msg:0};
+
+function ptNow(){const p={};new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);return{y:+p.year,mo:+p.month,d:+p.day,h:+p.hour,mi:+p.minute}}
+function updateCount(){const t=ptNow(),el=$("count");const days=Math.round((Date.UTC(2026,10,3)-Date.UTC(t.y,t.mo-1,t.d))/864e5);const mins=t.h*60+t.mi;
+  let txt,open=false;
+  if(days>1)txt=`${days} days to Nov 3`;else if(days===1)txt="1 day to Nov 3";
+  else if(days===0){if(mins<420)txt="Polls open at 7 AM today";else if(mins<1200){txt="Polls are open";open=true}else txt="Polls are closed"}
+  else txt="Election Day was Nov 3";
+  el.textContent=txt;el.classList.toggle("open",open)}
+updateCount();setInterval(updateCount,30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)updateCount()});
+
+function stateOf(a){const u=a.toUpperCase();const m=u.match(/\b([A-Z]{2})\s*\d{5}(?:-\d{4})?\s*$/)||u.match(/,\s*([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\s*$/)||u.match(/,\s*([A-Z]{2})\b/);return m&&STATES[m[1]]?m[1]:null}
+function lookupFor(st){return OFFICIAL[st]?OFFICIAL[st].lookup:"https://www.canivote.org"}
+function renderLookup(){
+  const a=$("addr").value.trim();
+  $("placeLead").innerHTML=a?`Vote centers near <b>${esc(a)}</b>. Pick where you'll vote.`:"Pick where you'll vote.";
+}
+function dest(){return S.mine?{name:S.placeName||"your polling place",addr:S.mine}:null}
+
+function go(n){
+  if(n>S.max)return;
+  S.step=n;let up=0;
+  document.querySelectorAll(".step").forEach(sec=>{
+    const k=+sec.dataset.step;
+    if(k>n){sec.dataset.state="upcoming";up++;sec.dataset.i=up;sec.style.setProperty("--i",up);
+      if(k<=S.max)sec.dataset.open="";else delete sec.dataset.open;return}
+    sec.dataset.state=k===n?"active":"done";delete sec.dataset.open;
+    delete sec.dataset.i;sec.style.removeProperty("--i");
+  });
+  document.querySelectorAll(".tk").forEach(t=>{const k=+t.dataset.go;t.classList.toggle("on",k===n);t.classList.toggle("done",k!==n&&k<=S.max);t.disabled=k>S.max});
+  $("sum1").textContent=$("addr").value.trim();
+  $("sum2").textContent=S.placeName||S.mine;
+  $("sum3").textContent=`${S.picks.map(p=>p.v).join(" + ")} · ${TIME[S.time]}`;
+  $("after").hidden=!(S.max>=4);
+}
+function advance(to){S.max=Math.max(S.max,to);go(to)}
+document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>go(+b.dataset.go)));
+
+$("addrForm").addEventListener("submit",e=>{e.preventDefault();
+  if(!box.hidden&&active>=0){pick(active);return}
+  closeSugg();
+  const a=$("addr").value.trim();
+  if(a.length<6||!inBay(a)){$("err1").hidden=false;$("addr").focus();return}
+  $("err1").hidden=true;Promise.race([fillZip(),new Promise(r=>setTimeout(r,2500))]).finally(()=>{renderLookup();loadVC();advance(2)})});
+$("addr").addEventListener("input",()=>{renderLookup();if(S.max>=4)buildPlan()});
+
+function single(el,key,attr){el.addEventListener("click",e=>{const b=e.target.closest("[data-"+attr+"]");if(!b)return;el.querySelectorAll("[data-"+attr+"]").forEach(x=>x.setAttribute("aria-pressed",x===b));S[key]=b.dataset[attr]})}
+S.vehicle="";S.picks=[{v:"Walk",m:"walking"}];
+const COMMON_PHRASE={Walk:"walk",Transit:"transit ride",Drive:"drive",Bike:"bike ride"};
+const MODE_RANK={transit:4,driving:3,bicycling:2,walking:1};
+function syncPicks(){const top=S.picks.reduce((a,p)=>MODE_RANK[p.m]>MODE_RANK[a.m]?p:a,S.picks[0]);S.mode=top.m;
+  const special=S.picks.filter(p=>p.m===top.m&&!COMMON_PHRASE[p.v]);S.vehicle=(special[0]||top).v}
+function togglePick(b){const v=b.dataset.v,m=b.dataset.m,i=S.picks.findIndex(p=>p.v===v);
+  if(!S.userPicked){S.userPicked=true;S.picks=[{v,m}]}
+  else if(i>=0){if(S.picks.length===1)return;S.picks.splice(i,1)}else S.picks.push({v,m});
+  document.querySelectorAll("#moreModes [data-v]").forEach(x=>x.setAttribute("aria-pressed",S.picks.some(p=>p.v===x.dataset.v)));syncPicks();renderMsg();if(S.max>=4)buildPlan()}
+$("moreModes").addEventListener("click",e=>{const b=e.target.closest("[data-v]");if(b)togglePick(b)});
+function phrase(p){return COMMON_PHRASE[p.v]||p.v.toLowerCase()+" ride"}
+function how(){return S.picks.map(phrase).join(" + ")}
+function howHTML(){return S.picks.map(p=>`${esc(phrase(p))} <span class="h3icon" aria-hidden="true">${iconFor(p.v,"")}</span>`).join(" + ")}
+const ICONS=[[/row ?boat|punt|dinghy/i,"🚣"],[/^walk/i,"🚶"],[/^transit$/i,"🚆"],[/^drive$/i,"🚗"],[/^bike$/i,"🚲"],[/wheelchair/i,"🦽"],[/running/i,"🏃"],[/stroller/i,"👶"],[/carpool/i,"🚗"],[/forklift/i,"🏗️"],
+[/ambulance/i,"🚑"],[/fire (truck|engine)/i,"🚒"],[/police/i,"🚓"],[/school bus/i,"🚌"],[/bus|matatu|jeepney|dolmu|marshrutka|tro-tro|daladala|angkot|bemo|songthaew/i,"🚌"],[/taxi|rideshare|cab/i,"🚕"],[/limousine/i,"🚘"],[/pickup/i,"🛻"],
+[/motorhome|\(rv\)|caravan|minivan|van/i,"🚐"],[/semi|tractor-trailer|lorry|ice road/i,"🚛"],[/truck/i,"🚚"],[/golf/i,"⛳"],[/tank|armored|military jeep/i,"🪖"],[/motorcycle|moped|dirt bike|boda/i,"🏍️"],[/rickshaw|tuk-tuk|three-wheeled/i,"🛺"],
+[/electric scooter|kick scooter|scooter/i,"🛴"],[/roller|inline/i,"🛼"],[/skateboard|longboard/i,"🛹"],[/unicycle|tricycle|bicycle|handcycle|kick bike|mountain bike|pedicab|cycle/i,"🚲"],
+[/subway|metro|underground/i,"🚇"],[/tram|streetcar|light rail/i,"🚊"],[/monorail|maglev|people mover|hovertrain|suspended/i,"🚝"],[/steam/i,"🚂"],[/high-speed|bullet/i,"🚄"],[/train|railway|funicular/i,"🚆"],
+[/elephant/i,"🐘"],[/camel/i,"🐫"],[/llama/i,"🦙"],[/donkey|mule/i,"🫏"],[/yak|ox |bullock/i,"🐂"],[/buffalo/i,"🐃"],[/reindeer/i,"🦌"],[/dog ?sled|dogsled/i,"🐕"],[/horse|pack animal|carriage|wagon|sleigh/i,"🐎"],
+[/helicopter|autogyro|gyrocopter/i,"🚁"],[/balloon/i,"🎈"],[/airship|blimp|zeppelin/i,"🎈"],[/glider|paraglider|wingsuit|sailplane/i,"🪂"],[/drone|evtol/i,"🛸"],[/private jet|business jet|^jet$/i,"🛩️"],[/plane|airliner|aircraft|air ambulance/i,"✈️"],
+[/chairlift|ski lift|rope tow/i,"🚠"],[/cable car|gondola lift|aerial|ropeway/i,"🚡"],[/zipline/i,"🪢"],[/elevator/i,"🛗"],[/escalator|moving walkway|conveyor/i,"↗️"],
+[/rocket|launch|space shuttle|spaceplane/i,"🚀"],[/rover|lander/i,"🛰️"],[/space/i,"🛰️"],
+[/ferry/i,"⛴️"],[/cruise|liner|ship|tanker|carrier|icebreaker|container/i,"🚢"],[/yacht|cruiser|speedboat|motorboat|power catamaran/i,"🛥️"],[/canoe|kayak|coracle|dragon boat/i,"🛶"],[/surf|paddleboard/i,"🏄"],
+[/submarine|submersible|underwater/i,"🌊"],[/sail|catamaran|dhow|felucca|junk|sampan|longtail|boat|raft|dinghy|hovercraft|hydrofoil|lifeboat|vessel|tug/i,"⛵"],
+[/snowmobile|snowcat|snow coach|tracked snow|snow rescue/i,"🛷"],[/ski/i,"⛷️"],[/snowboard/i,"🏂"],[/sled|toboggan|pulka|snowshoe/i,"🛷"],[/atv|quad|utv|buggy|four-wheel|off-road|rock crawler|sand rail|tracked/i,"🚙"],
+[/robot|agv/i,"🤖"],[/pipeline/i,"🛢️"],[/porter|palanquin|sedan chair/i,"🪑"],[/car/i,"🚗"]];
+function iconFor(n,c){for(const [re,e] of ICONS)if(re.test(n))return e;return (window.VEHICLE_EMOJI||{})[c]||"➡️"}
+const BADGES=[[/electric|evtol/i,"⚡"],[/cargo|freight|delivery/i,"📦"],[/passenger/i,"🧍"],[/military|troop|armored|coast guard/i,"🎖️"],[/hospital|ambulance|rescue|relief|lifeboat/i,"🩹"],
+[/high-speed|bullet|speedboat/i,"💨"],[/diesel/i,"⛽"],[/steam/i,"♨️"],[/cog|rack/i,"⚙️"],[/mountain/i,"⛰️"],[/snow|ice|winter|sleigh|toboggan|pulka/i,"❄️"],[/seaplane|ocean|water|amphibious|underwater/i,"💧"],
+[/private|business/i,"💼"],[/charter/i,"🎟️"],[/agricultur/i,"🌾"],[/ultra|micro/i,"🪶"],[/turboprop/i,"🌀"],[/mine/i,"⛏️"],[/narrow/i,"↔️"],[/commuter/i,"🏙️"],[/intercity/i,"🗺️"],[/cruise|cabin/i,"🍹"],[/container/i,"🧱"],[/bulk/i,"🪨"],
+[/lng|oil|tanker|pipeline/i,"🛢️"],[/reusable/i,"♻️"],[/orbital|interplanetary/i,"🪐"],[/tracked/i,"🔗"],[/tandem/i,"👥"],[/mini/i,"🔹"],[/tourist/i,"📸"],[/human-powered/i,"💪"],[/research/i,"🔬"],[/powered/i,"🔋"],[/gas/i,"🫧"],[/kite/i,"🪁"],
+[/wind/i,"🌬️"],[/stand-up/i,"🧍"],[/whitewater/i,"🌊"],[/outrigger|reed|dugout|traditional/i,"🪵"],[/dragon/i,"🐉"],[/fishing/i,"🎣"],[/house/i,"🏠"],[/river|paddle steamer/i,"🏞️"],[/inflatable/i,"🎈"],[/pedal/i,"🦶"],
+[/venetian/i,"🎶"],[/school/i,"🎒"],[/coach/i,"🧳"],[/mini ?bus/i,"🔹"],[/chicken/i,"🐔"],[/chiva/i,"🎨"],[/crewed/i,"👩‍🚀"],[/uncrewed/i,"🤖"],[/capsule/i,"💊"],[/lunar/i,"🌙"],[/mars/i,"🔴"],[/station/i,"🛰️"],
+[/elevator/i,"🛗"],[/inclined/i,"📐"],[/airport/i,"🛫"],[/cross-country/i,"🌲"],[/sky|ski/i,"🎿"],[/police/i,"🚨"],[/command/i,"📡"],[/ice road/i,"🧊"],[/semi/i,"🔗"],[/tractor/i,"🚜"],[/golf/i,"⛳"],[/limo/i,"🥂"],
+[/pickup/i,"🛻"],[/minivan/i,"👨‍👩‍👧"],[/rideshare/i,"📱"],[/handcycle/i,"✋"],[/kick/i,"🦵"],[/longboard/i,"📏"],[/inline/i,"➖"],[/roller/i,"🎡"],[/uni/i,"1️⃣"],[/tri/i,"3️⃣"],[/auto-|tuk|three-wheeled/i,"🛵"],
+[/cycle rickshaw|pedicab|cycle taxi/i,"🚲"],[/fire/i,"🔥"],[/sled/i,"🐾"],[/carriage/i,"👑"],[/wagon/i,"🌾"],[/hang/i,"🔺"],[/para/i,"🪂"],[/hot-air/i,"🔥"],[/airship|blimp|zeppelin/i,"🌫️"],[/drone/i,"📡"],
+[/wingsuit/i,"🦅"],[/zipline/i,"🪢"],[/chair/i,"🪑"],[/rope/i,"🪢"],[/conveyor/i,"🔁"],[/escalator/i,"🪜"],[/moving walkway/i,"➡️"],[/suspended/i,"⬇️"],[/people mover/i,"👥"],[/hovertrain|maglev/i,"🧲"],[/monorail/i,"1️⃣"],
+[/funicular/i,"📐"],[/light rail/i,"💡"],[/streetcar/i,"🏙️"],[/subway|metro|underground/i,"⬇️"]];
+const POOL=["🔸","🔹","🟣","🟢","🟡","🔺","⭐","✨","🌟","💠","🔶","🔷","⚪","🟠","🟤","⚫","🔴","🔵","🟥","🟦","🟩","🟨","🟪","🟧","❤️","💙","💚","💛","💜","🧡","🤍","🖤","🤎","♦️","♠️","♣️","♥️","🎯","🎵","🍀","🌸","🌼","🌻","🌺","🍁","🍂","🌙","☀️","⛅","🌈","❄️","🔆","🔅","💎","🏷️","🔖","📍","📌","🧭","🔔"];
+const ICON_MAP=new Map();
+(function buildIcons(){const used=new Set();let k=0;
+  const all=[["Walk","Most common"],["Transit","Most common"],["Drive","Most common"],["Bike","Most common"],...(window.VEHICLES||[])];
+  for(const [n,c] of all){const prim=iconFor(n,c);let badge="";
+    if(used.has(prim)){for(const [re,b] of BADGES){if(re.test(n)&&!used.has(prim+b)){badge=b;break}}
+      while(!badge||used.has(prim+badge)){badge=POOL[k++%POOL.length];if(k>POOL.length*4)break}}
+    used.add(prim+badge);ICON_MAP.set(n,[prim,badge])}})();
+function iconHTML(n,c){return iconFor(n,c)}
+function renderVehicles(){const q=($("vSearch").value||"").trim().toLowerCase();const groups={};
+  const COMMON=[["Walk","Most common","walking"],["Transit","Most common","transit"],["Drive","Most common","driving"],["Bike","Most common","bicycling"]];
+  [...COMMON,...(window.VEHICLES||[])].forEach(([n,c,m])=>{if(q&&!n.toLowerCase().includes(q)&&!c.toLowerCase().includes(q))return;(groups[c]=groups[c]||[]).push([n,m])});
+  const cats=Object.keys(groups);
+  $("moreModes").innerHTML=cats.length?cats.map(c=>`<div class="vcat"><span class="e" aria-hidden="true">${c==="Most common"?"⭐":c==="More"?"➕":(window.VEHICLE_EMOJI||{})[c]||""}</span>${esc(c)}</div><div class="vgrid">${groups[c].map(([n,m])=>`<button type="button" class="vtile" data-v="${esc(n)}" data-m="${m}" aria-pressed="${S.picks.some(p=>p.v===n)}"><span class="emo" aria-hidden="true">${iconHTML(n,c)}</span><span class="vn">${esc(n)}</span></button>`).join("")}</div>`).join(""):'<p class="vcat">Nothing matches that search.</p>'}
+$("vSearch").addEventListener("input",renderVehicles);renderVehicles();
+single($("times"),"time","t");
+$("planBtn").addEventListener("click",()=>{buildPlan();advance(4)});
+
+const BUILDING='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16M6 21V10M18 21V10M3 10l9-6 9 6M10 21v-5h4v5"/></svg>';
+function titleCase(s){return /[a-z]/.test(s)?s:s.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()).replace(/\b(Of|And|The|At|For)\b/g,w=>w.toLowerCase())}
+const walk=m=>Math.max(1,Math.round(m/80))+" min walk";
+function accessTags(r){const x=r.access;if(x===undefined)return '<span class="tag unk">Checking accessibility…</span>';if(x===null)return '<span class="tag unk">Accessibility details unavailable</span>';const t=[];
+  t.push(x.wheelchair==="yes"?'<span class="tag ok">Wheelchair accessible</span>':x.wheelchair==="limited"?'<span class="tag">Limited wheelchair access</span>':x.wheelchair==="no"?'<span class="tag no">Reported not wheelchair accessible</span>':'<span class="tag unk">Wheelchair access not reported</span>');
+  if(x.accessibleToilets==="yes")t.push('<span class="tag ok">Accessible restroom</span>');
+  if(x.accessibleParking)t.push('<span class="tag ok">Accessible parking nearby</span>');else if(x.parking)t.push('<span class="tag">Parking nearby</span>');
+  if(x.rail)t.push(`<span class="tag">${esc(x.rail.network&&!x.rail.name.includes(x.rail.network)?x.rail.network.split(";")[0]+" "+x.rail.name:x.rail.name)} station · ${walk(x.rail.meters)}</span>`);
+  if(x.bus)t.push(`<span class="tag">Bus stop · ${walk(x.bus.meters)}</span>`);
+  if(x.bike)t.push('<span class="tag">Bike parking</span>');
+  if(x.restroom&&x.accessibleToilets!=="yes")t.push('<span class="tag">Restroom nearby</span>');if(x.seating)t.push('<span class="tag">Seating nearby</span>');if(x.water)t.push('<span class="tag">Drinking water</span>');
+  if(x.busyRoadMeters===null||x.busyRoadMeters>=120)t.push('<span class="tag ok">Quiet</span>');return t.join("")}
+const MONTHS={January:0,February:1,March:2,April:3,May:4,June:5,July:6,August:7,September:8,October:9,November:10,December:11};
+function toMin(s){const m=s.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);if(!m)return null;let x=(+m[1]%12)*60+ +m[2];if(/PM/i.test(m[3]))x+=720;return x}
+function parseHours(str){const out=[];for(const seg of (str||"").split(";")){const mt=seg.match(/^(.*?):\s*(\d.*)$/);if(!mt)continue;const dpart=mt[1],tpart=mt[2];const d=dpart.trim();if(/^Election Day/i.test(d))continue;
+  const [t1,t2]=tpart.split("-");const open=toMin(t1),close=toMin(t2||"");const r=d.split(/\s*-\s*/).map(x=>{const mm=x.trim().match(/^([A-Za-z]+)\s+(\d+)/);return mm&&MONTHS[mm[1]]!=null?new Date(2026,MONTHS[mm[1]],+mm[2]):null});
+  if(!r[0])continue;const end=r[1]||r[0];for(let dt=new Date(r[0]);dt<=end;dt.setDate(dt.getDate()+1))out.push({day:dt.getDay(),open,close})}return out}
+function hoursInfo(r){if(!r._h){const days=parseHours(r.hours);r._h={days:days.length,early:days.some(d=>d.open!=null&&d.open<=480),late:days.some(d=>d.close!=null&&d.close>=1080),weekend:days.some(d=>d.day===0||d.day===6)}}return r._h}
+const FILTERS={elder:r=>isElder(r),translators:r=>true,earlyhours:r=>hoursInfo(r).early,latehours:r=>hoursInfo(r).late,manydays:r=>hoursInfo(r).days>=4,weekend:r=>hoursInfo(r).weekend,
+  restroomnear:r=>r.access&&(r.access.restroom||r.access.accessibleToilets==="yes"),seating:r=>r.access&&r.access.seating,water:r=>r.access&&r.access.water,
+  nopolice:r=>buildingType(r.name)!=="Public safety building",noworship:r=>buildingType(r.name)!=="Place of worship",noschool:r=>buildingType(r.name)!=="School",nogov:r=>buildingType(r.name)!=="Government building",nosenior:r=>buildingType(r.name)!=="Senior center",nolibrary:r=>buildingType(r.name)!=="Library",nocommunity:r=>buildingType(r.name)!=="Community center",nomobile:r=>buildingType(r.name)!=="Mobile vote center",quiet:r=>r.access&&r.access.busyRoadMeters!==undefined&&(r.access.busyRoadMeters===null||r.access.busyRoadMeters>=120),restroom:r=>r.access&&r.access.accessibleToilets==="yes",accparking:r=>r.access&&r.access.accessibleParking,curbside:r=>S.county==="Sonoma",sdr:r=>r.sameDayRegistration,early:r=>/^[A-Z][a-z]+ \d+/.test(r.hours)&&!/^Election/.test(r.hours),wheelchair:r=>r.access&&r.access.wheelchair==="yes",parking:r=>r.access&&r.access.parking,transit:r=>r.access&&(r.access.bus||r.access.rail),dropoff:r=>r.dropOff,bike:r=>r.access&&r.access.bike};
+S.filters=new Set();S.avoid=new Set();S.btypes=new Set();
+const HOODS=(window.BAY_HOODS||[]).map(([n,c])=>({n,c,k:(n+"|"+c).toLowerCase()}));
+function avoided(x){if(!x.neighborhood||!S.avoid.size)return false;const n=x.neighborhood.toLowerCase();return [x.hoodCity,x.city].some(c=>c&&S.avoid.has(n+"|"+c.toLowerCase()))}
+function renderHoods(){const box=$("hoodOpts");if(!box)return;const q=($("hoodSearch").value||"").trim().toLowerCase();
+  const list=HOODS.filter(h=>!q||h.n.toLowerCase().includes(q)||h.c.toLowerCase().includes(q));
+  box.innerHTML=list.length?list.map(h=>`<button class="opt" type="button" data-h="${esc(h.k)}" aria-pressed="${S.avoid.has(h.k)}"><span class="box"></span><span class="ot"><span>${esc(h.n)}<small class="hc">${esc(h.c)}</small></span></span></button>`).join(""):'<p class="mnote">No neighborhoods match.</p>'}
+function renderVC(){
+  const list=$("vcList");if(!S.vc||!S.vc.length){list.innerHTML="";$("vcFilters").hidden=true;return}
+  $("vcFilters").hidden=false;
+  const cur="";
+  document.querySelectorAll("#vcFilters .dd").forEach(d=>{const n=d.dataset.dd==="building"?S.btypes.size:[...d.querySelectorAll("[data-f]")].filter(o=>S.filters.has(o.dataset.f)).length+(d.dataset.dd==="avoid"?S.avoid.size:0);const c=d.querySelector(".cnt");c.hidden=!n;c.textContent=n;d.querySelector(".ddbtn").classList.toggle("on",!!n)});
+  document.querySelector('[data-f="curbside"]').hidden=S.county!=="Sonoma";
+  if(!$("hoodOpts").childElementCount)renderHoods();
+  const shown=S.vc.map((x,i)=>[x,i]).filter(([x])=>!avoided(x)&&(!S.btypes.size||S.btypes.has(buildingType(x.name)))&&[...S.filters].every(f=>FILTERS[f](x))&&(!cur||(cur==="!worship"?buildingType(x.name)!=="Place of worship":buildingType(x.name)===cur)));
+  const active=S.filters.size+S.avoid.size+S.btypes.size+(cur?1:0);
+  $("vcCount").innerHTML=active?`Showing ${shown.length} of ${S.vc.length} vote centers <button type="button" id="vcClear">Clear filters</button>`:"";
+  list.innerHTML=shown.length?shown.map(([x,i])=>`<button type="button" class="row" data-vc="${i}" aria-pressed="${S.placeName===titleCase(x.name)}"><span class="ic w">${BUILDING}</span><span class="tx"><span class="t1">${esc(titleCase(x.name))}</span><span class="t2">${esc(titleCase(x.address))}, ${esc(titleCase(x.city))} ${esc(x.zip)}${x.neighborhood?` · ${esc(x.neighborhood)}`:""}</span><span class="tags">${vcTags(x)}</span><span class="tags">${accessTags(x)}</span></span>${x.miles!=null?`<span class="mi">${x.miles} mi</span>`:""}</button>`).join(""):'<p class="vc-status">No nearby vote centers match those filters. Turn one off to see more.</p>';
+  const ac=$("vcAccess");ac.hidden=false;
+  ac.innerHTML=`California law requires every vote center to have at least three accessible voting machines.${S.countyLookup?` On Election Day, some counties post wait times; check <a href="${S.countyLookup}" target="_blank" rel="noopener">${esc(S.county)} County Elections</a>.`:""} Building, parking and transit details come from OpenStreetMap and can be incomplete${S.countyLookup?`, so <a href="${S.countyLookup}" target="_blank" rel="noopener">check with ${esc(S.county)} County</a> if you need a specific accommodation`:""}.`;
+}
+async function loadAccess(me){
+  const pts=S.vc.filter(x=>x.lat!=null).map(x=>[x.lat,x.lon,x.name]);if(!pts.length)return;
+  try{const r=await fetch("/api/access?pts="+encodeURIComponent(JSON.stringify(pts)));const d=await r.json();if(me!==vcReq)return;
+    let k=0;S.vc.forEach(x=>{if(x.lat!=null)x.access=d.ok?d.results[k++]:null});}
+  catch(e){if(me!==vcReq)return;S.vc.forEach(x=>x.access=null)}
+  renderVC();
+}
+function closeMenus(except){document.querySelectorAll("#vcFilters .dd").forEach(d=>{if(d===except)return;d.querySelector(".ddmenu").hidden=true;d.querySelector(".ddbtn").setAttribute("aria-expanded","false")})}
+document.addEventListener("click",e=>{if(!e.composedPath().some(el=>el.classList&&el.classList.contains("dd")))closeMenus()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenus()});
+$("hoodSearch").addEventListener("input",renderHoods);
+$("vcFilters").addEventListener("click",e=>{
+  const db=e.target.closest(".ddbtn");if(db){const d=db.closest(".dd"),m=d.querySelector(".ddmenu"),open=m.hidden;closeMenus(d);m.hidden=!open;db.setAttribute("aria-expanded",open);return}
+  const bt=e.target.closest("[data-bt]");if(bt){const v=bt.dataset.bt;S.btypes.has(v)?S.btypes.delete(v):S.btypes.add(v);bt.setAttribute("aria-pressed",S.btypes.has(v));renderVC();return}
+  const ho=e.target.closest("[data-h]");if(ho){const n=ho.dataset.h;S.avoid.has(n)?S.avoid.delete(n):S.avoid.add(n);ho.setAttribute("aria-pressed",S.avoid.has(n));renderVC();if(S.max>=4)drawRoute();return}
+  const bo=e.target.closest("[data-b]");if(bo){S.building=bo.dataset.b;closeMenus();renderVC();return}
+  if(e.target.id==="vcClear"){S.filters.clear();S.avoid.clear();S.btypes.clear();S.building="";renderHoods();document.querySelectorAll("#vcFilters [data-bt]").forEach(c=>c.setAttribute("aria-pressed","false"));document.querySelectorAll("#vcFilters [data-f]").forEach(c=>c.setAttribute("aria-pressed","false"));renderVC();return}const b=e.target.closest("[data-f]");if(!b)return;const f=b.dataset.f;S.filters.has(f)?S.filters.delete(f):S.filters.add(f);b.setAttribute("aria-pressed",S.filters.has(f));renderVC()});
+function buildingType(n){n=n.toLowerCase();
+  if(/cemetery|cemetary|memorial park|mortuary|funeral/.test(n))return"Cemetery";
+  if(/\bmobile\b|pop[- ]?up|vote ?bus|voting bus|\bvan\b/.test(n))return"Mobile vote center";
+  if(/church|chapel|temple|synagogue|mosque|baptist|methodist|catholic|episcopal|lutheran|presbyterian|ministr|parish|congregation|cathedral|gurdwara/.test(n))return"Place of worship";
+  if(/library/.test(n))return"Library";if(/senior/.test(n))return"Senior center";
+  if(/school|elementary|middle|academy|college|university|campus/.test(n)||/\bhigh\b/.test(n))return"School";
+  if(/city hall|civic|county|government|courthouse|registrar/.test(n))return"Government building";
+  if(/fire station|police/.test(n))return"Public safety building";
+  if(/community|recreation|\brec\b|park|center|centre|clubhouse|ymca|ywca/.test(n))return"Community center";
+  return"";}
+function isElder(r){return buildingType(r.name)==="Senior center"||!!(r.access&&r.access.wheelchair==="yes"&&(r.access.seating||r.access.restroom||r.access.accessibleToilets==="yes"))}
+function vcTags(r){const t=[];const bt=buildingType(r.name);if(bt)t.push(`<span class="tag">${bt}</span>`);const ed=(r.hours.match(/Election Day:\s*([^;]+)/)||[])[1];if(ed)t.push(`<span class="tag ed">Election Day ${esc(ed.replace(/(\d)(AM|PM)/g,"$1 $2"))}</span>`);
+  const first=(r.hours.match(/^([A-Z][a-z]+ \d+)/)||[])[1];if(first&&!/^Election/.test(r.hours))t.push(`<span class="tag">Early voting from ${esc(first)}</span>`);
+  if(r.dropOff)t.push('<span class="tag">Ballot drop-off</span>');if(S.county==="Sonoma")t.push('<span class="tag ok">Curbside voting</span>');if(isElder(r))t.push('<span class="tag ok">Elder friendly</span>');t.push('<span class="tag">Translators available</span>');const hi=hoursInfo(r);if(hi.days)t.push(`<span class="tag">Open ${hi.days} day${hi.days>1?"s":""} before Election Day</span>`);if(hi.weekend)t.push('<span class="tag">Weekend hours</span>');if(hi.early)t.push('<span class="tag">Opens early</span>');if(hi.late)t.push('<span class="tag">Open late</span>');if(r.sameDayRegistration)t.push('<span class="tag">Same-day registration</span>');return t.join("")}
+let vcReq=0;
+async function loadVC(){
+  const list=$("vcList"),note=$("vcNote"),a=$("addr").value.trim(),me=++vcReq;
+  const parts=a.split(",").map(s=>s.trim());const zip=(a.match(/\b(\d{5})\b(?!.*\b\d{5}\b)/)||[])[1]||"";
+  const q=new URLSearchParams({street:parts[0]||"",city:(parts[1]||"").replace(/\bCA\b.*$/i,"").trim(),zip});
+  list.innerHTML='<p class="vc-status">Finding official vote centers near you…</p>';note.hidden=true;S.vc=[];$("vcFilters").hidden=true;$("vcAccess").hidden=true;
+  try{
+    const r=await fetch("/api/vote-centers?"+q);const d=await r.json();if(me!==vcReq)return;
+    if(!d.ok){list.innerHTML="";note.hidden=false;note.textContent=d.error==="outside_bay"?"That address isn't in one of the nine Bay Area counties.":"We couldn't match that address. Check the street, city and ZIP and try again.";return}
+    S.vc=d.results;S.county=d.county;S.countyLookup=d.countyLookup;renderVC();loadAccess(me);
+    if(!d.results.length){note.hidden=false;note.textContent=`No vote centers are listed near this address yet.`}
+  }catch(e){if(me!==vcReq)return;list.innerHTML="";note.hidden=false;note.textContent="Vote centers couldn't load right now. Try again in a moment."}
+}
+$("vcList").addEventListener("click",e=>{const b=e.target.closest("[data-vc]");if(!b)return;const x=S.vc[+b.dataset.vc];
+  S.placeName=titleCase(x.name);S.placeLat=x.lat;S.placeLon=x.lon;S.placeHours=(x.hours.match(/Election Day:\s*([^;]+)/)||[])[1]||"";S.mine=`${titleCase(x.address)}, ${titleCase(x.city)}, CA ${x.zip}`;
+  document.querySelectorAll("#vcList .row").forEach(r=>r.setAttribute("aria-pressed",r===b));if(S.max>=4)buildPlan();advance(3)});
+
+let rmap=null,rtimer=null,rreq=0;
+function drawRoute(){clearTimeout(rtimer);rtimer=setTimeout(routeNow,450)}
+function fmtMin(m){return m>=60?`About ${Math.floor(m/60)} hr${m%60?` ${m%60} min`:""}`:`About ${m} min`}
+function setTrip(m){S.tripMin=m;const el=$("tripTime");if(el)el.textContent=m?fmtMin(m):"See Google Maps";renderMsg()}
+function gIframe(){if(rmap){rmap.remove();rmap=null}if($("routeLegs"))$("routeLegs").hidden=true;const d=dest();if(!d||!$("routeMap"))return;$("routeMap").innerHTML=`<iframe title="Directions in Google Maps" src="${gembed($("addr").value.trim(),d.addr,S.mode)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;$("routeDetails").hidden=true}
+async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;const o=$("addr").value.trim();
+  if(S.placeLat==null||!window.L){gIframe();$("routeSum").textContent="";return}
+  $("routeSum").textContent="Finding the best route…";
+  try{const r=await fetch("/api/route",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from:o,toLat:S.placeLat,toLon:S.placeLon,vehicle:S.vehicle,mode:S.mode,picks:S.picks,avoid:[...S.avoid],time:S.time})});
+    const j=await r.json();if(me!==rreq)return;
+    if(j.fallback==="transit"){gIframe();setTrip(null);$("routeSum").textContent=S.avoid.size?"Transit directions come from Google Maps and can't avoid neighborhoods.":"Transit directions come from Google Maps.";return}
+    if(!j.ok){gIframe();setTrip(null);$("routeSum").textContent=j.error==="no_route"?"We couldn't find a route that avoids those neighborhoods. Showing Google's route instead.":"Route unavailable right now. Showing Google's route instead.";return}
+    if(rmap){rmap.remove();rmap=null}el.innerHTML="";
+    rmap=L.map(el,{scrollWheelZoom:true,zoomControl:true});L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(rmap);
+    j.avoided.forEach(a=>L.circle([a.lat,a.lon],{radius:a.r,color:"#c0392b",weight:1.5,fillOpacity:.15}).addTo(rmap).bindTooltip("Avoiding "+a.name));
+    const COLORS=["#5b3391","#1f7a4d","#c05a00","#2b6cb0"];const all=[];
+    j.legs.forEach((lg,i)=>{const col=COLORS[i%COLORS.length];
+      const pl=L.polyline(lg.shape,{color:col,weight:6,opacity:.95,dashArray:lg.dashed?"2 10":null,lineCap:"round"}).addTo(rmap).bindTooltip(`${iconFor(lg.name,"")} ${lg.name}`,{sticky:true});all.push(...lg.shape);
+      if(i>0)L.circleMarker(lg.shape[0],{radius:6,color:col,fillColor:"#fff",fillOpacity:1,weight:3}).addTo(rmap).bindTooltip(`Switch to ${lg.name}`);
+      const mid=lg.shape[Math.floor(lg.shape.length/2)];L.marker(mid,{icon:L.divIcon({className:"legicon",html:`<span style="border-color:${col}">${iconFor(lg.name,"")}</span>`,iconSize:[30,30],iconAnchor:[15,15]})}).addTo(rmap)});
+    L.circleMarker(j.start,{radius:7,color:"#1d1c21",fillColor:"#fff",fillOpacity:1,weight:3}).addTo(rmap).bindTooltip("Start");
+    L.circleMarker(j.end,{radius:8,color:"#1d1c21",fillColor:"#1d1c21",fillOpacity:1}).addTo(rmap).bindTooltip(S.placeName||"Polling place");
+    rmap.fitBounds(L.latLngBounds(all),{padding:[28,28]});
+    const av=j.avoided.length?` · avoids ${j.avoided.map(a=>a.name).join(", ")}`:"";
+    const sk=j.skipped.length?`. ${j.skipped.join(", ")} can't be avoided because your start or polling place is inside it.`:"";
+    $("routeSum").textContent=j.transit?`Leave ${j.depart} · arrive ${j.arrive} · ${j.minutes} min on Nov 3 schedules${j.avoidIgnored?". Transit routes can't avoid neighborhoods yet.":""}${(j.notes||[]).length?" "+j.notes.join(" "):""}`:`${j.miles} mi · about ${j.minutes} min total${av}${sk}`;setTrip(j.minutes);
+    $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b> · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?" · time is an estimate, check the schedule":""}</small></span></li>`).join("");$("routeLegs").hidden=false;
+    $("routeSteps").innerHTML=j.legs.map((lg,i)=>`<li class="lh" style="color:${COLORS[i%COLORS.length]}">${iconFor(lg.name,"")} ${esc(lg.name)}</li>`+lg.steps.map(s=>`<li>${esc(s)}</li>`).join("")).join("");$("routeDetails").hidden=false;
+  }catch(e){if(me!==rreq)return;gIframe();setTrip(null);$("routeSum").textContent="Route unavailable right now. Showing Google's route instead."}}
+function gmaps(o,d,m){return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(d)+"&travelmode="+m}
+function gembed(o,d,m){return "https://www.google.com/maps?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+({walking:"w",transit:"r",driving:"d",bicycling:"b"}[m])+"&output=embed"}
+function amaps(o,d,m){return "https://maps.apple.com/?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+APPLE[m]}
+function buildPlan(){
+  setTimeout(renderMsg,0);
+  const o=$("addr").value.trim(),d=dest(),st=stateOf(o)||"CA";if(!d)return;
+  $("planCard").innerHTML=`
+    <h2>Your plan to vote</h2>
+    <div class="inner">
+      <span class="badge">Tuesday, Nov 3</span>
+      <h3>${TIME[S.time]} ${howHTML()} to ${esc(d.name)}</h3>
+      <div class="route">
+        <span class="d"></span><span class="a">${esc(o)}</span>
+        <span class="r"></span><span class="m">${esc(S.picks.map(p=>p.v).join(" + "))} · directions shown for ${MODE_CAP[S.mode].toLowerCase()}</span>
+        <span class="d e"></span><span class="a"><b>${esc(S.placeName||"Polling place")}</b><br>${esc(d.addr)}</span>
+      </div>
+      <div class="map" id="routeMap"></div>
+      <p class="rsum" id="routeSum">Finding the best route…</p>
+      <ul class="rlegs" id="routeLegs" hidden></ul>
+      <details class="rdetails" id="routeDetails" hidden><summary>Turn-by-turn directions</summary><ol class="rsteps" id="routeSteps"></ol></details>
+      <div class="facts">
+        <div class="fact"><div class="k">Trip time</div><div class="v" id="tripTime">Estimating…</div></div>
+        <div class="fact"><div class="k">Polls open</div><div class="v">${OFFICIAL[st]?OFFICIAL[st].hours:"Hours vary by state"}</div></div>
+      </div>
+      <p class="tip">${TIP[S.time]}</p>
+      <div class="acts">
+        <a class="btn purple" href="${gmaps(o,d.addr,S.mode)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8z"/></svg>Open in Google Maps</a>
+        <a class="btn lav" href="${amaps(o,d.addr,S.mode)}" target="_blank" rel="noopener">Apple Maps</a>
+        <button class="btn lav" type="button" id="copyPlan">Copy my plan</button>
+      </div>
+    </div>`;
+  drawRoute();
+  $("copyPlan").onclick=()=>copy(`My plan for Nov 3: ${TIME[S.time].toLowerCase()} ${how()} to ${d.name} (${d.addr}). Directions: ${gmaps(o,d.addr,S.mode)}`,"Plan copied");
+  const items=[
+    `Double-check your polling place on the <a href="${lookupFor(st)}" target="_blank" rel="noopener">official lookup</a> the week of the election. Locations can change.`,
+    `Check your polling hours and whether your state asks for ID. <a href="https://www.canivote.org" target="_blank" rel="noopener">CanIVote.org</a> lists the rules.`,
+    S.mode==="transit"?"Check service alerts that morning. Schedules can change.":S.mode==="driving"?"Look up parking near the polling place before you leave.":S.mode==="bicycling"?"Plan where you'll lock your bike near the entrance.":"Wear comfortable shoes in case there's a line.",
+    `Preview your ballot on <a href="https://www.sway.co/" target="_blank" rel="noopener">Sway</a> so you're ready when you get there.`
+    ,`<b>ID.</b> Most California voters don't need to show ID. If it's your first time voting and you registered without a driver's license or Social Security number, you may be asked for one.`
+    ,`<b>Bringing kids.</b> Children under 18 can come into the voting booth with you.`
+    ,`<b>Help marking your ballot.</b> You can bring up to two people to help, as long as they aren't your employer or union representative.`
+    ,`<b>Language help.</b> Every vote center must offer help in the languages your county is required to cover.`
+    ,`<b>No campaigning.</b> Campaigning isn't allowed within 100 feet of a polling place. Tell a poll worker if anyone bothers you.`
+    ,`<b>Lines at closing.</b> If you're in line when polls close, you can still vote.`
+  ];
+  $("checks").innerHTML=items.map(t=>`<li><button class="cb" type="button" aria-pressed="false" aria-label="Mark done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button><span>${t}</span></li>`).join("");
+}
+$("checks").addEventListener("click",e=>{const b=e.target.closest(".cb");if(b)b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")});
+
+const OPENERS=[
+  p=>`I'm going in the ${p.when}. Let's meet up!`,
+  p=>`Election Day is Tuesday, Nov 3. Let's make it an event.`,
+  p=>`Planned my whole trip in about 30 seconds.`,
+  p=>`Bring a friend, bring snacks, bring your ballot opinions.`
+];
+const ATHLON=["","","duathlon","triathlon","quadrathlon","pentathlon","hexathlon","heptathlon","octathlon"];
+const VERB={Walk:"walk",Drive:"drive",Bike:"bike",Transit:"take transit"};
+function rallyHow(){const icons=S.picks.map(p=>iconFor(p.v,"")).join("");
+  if(S.picks.length>1)return `${ATHLON[S.picks.length]||"decathlon"} ${icons}`;
+  const p=S.picks[0];return `${VERB[p.v]||p.v.toLowerCase()} ${icons}`}
+function planMsg(){
+  const d=dest();const lines=[`Want to ${rallyHow()} to the polls with me? Try SwayWay!`];
+  if(!d)return lines[0];
+  lines.push(OPENERS[S.msg%OPENERS.length]({when:TIME[S.time].toLowerCase()}),"",`Where: ${d.name==="your polling place"?"":d.name+", "}${d.addr}`);
+  if(S.picks.length>1)lines.push(`How: ${S.picks.map(p=>`${p.v} ${iconFor(p.v,"")}`).join(" + ")}`);
+  if(S.tripMin)lines.push(`Trip time: ${fmtMin(S.tripMin).toLowerCase()}`);
+  if(S.placeHours)lines.push(`Election Day hours: ${S.placeHours.replace(/(\d)(AM|PM)/g,"$1 $2")}`);
+  lines.push(`Directions: https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d.addr)}&travelmode=${S.mode}`);
+  return lines.join("\n");
+}
+function renderMsg(){$("bubble").textContent=planMsg()}
+$("shuffle").onclick=()=>{S.msg=(S.msg+1)%OPENERS.length;renderMsg()};
+$("copyMsg").onclick=()=>copy(planMsg(),"Message copied, now send it");
+
+function copy(t,msg){const ok=()=>toast(msg);try{navigator.clipboard.writeText(t).then(ok,()=>fb(t,ok))}catch(e){fb(t,ok)}}
+function fb(t,ok){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){toast("Select the text and copy it")}a.remove()}
+let tt;function toast(m){const el=$("toast");el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2200)}
+
+const US_DATA=window.US_DATA||"";
+const ENTRIES=US_DATA?US_DATA.split(";").map(r=>{const [st,city,z]=r.split("|");return{st,city,lc:city.toLowerCase(),zips:z.split(",")}}):[];
+const ZIPIDX={};ENTRIES.forEach(e=>e.zips.forEach(z=>{if(!ZIPIDX[z])ZIPIDX[z]=e}));
+const SUFFIX=/\b(st|street|ave|avenue|av|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|pkwy|parkway|hwy|highway|ter|terrace|cir|circle|sq|square|trl|trail|loop|row|plz|plaza|pike|walk|path|broadway)\.?(?=\s|$)/gi;
+function inBay(a){const zs=a.match(/\b\d{5}\b/g);if(zs)return!!ZIPIDX[zs[zs.length-1]];const lc=", "+a.toLowerCase().replace(/\s+/g," ").replace(/\s*,\s*/g,", ")+",";return ENTRIES.some(e=>lc.includes(", "+e.lc+","))}
+function splitStreet(q){
+  const parts=q.split(",");
+  if(parts.length>1)return{street:parts[0].trim(),rest:parts.slice(1).join(" ").trim()};
+  let m,last=null;SUFFIX.lastIndex=0;while((m=SUFFIX.exec(q)))last=m;
+  if(last&&/^\d/.test(q)){const cut=last.index+last[0].length;return{street:q.slice(0,cut).trim(),rest:q.slice(cut).trim()}}
+  if(/^\d{5}$/.test(q.trim()))return{street:"",rest:q.trim()};
+  if(/^\d/.test(q))return{street:q.trim(),rest:""};
+  return{street:"",rest:q.trim()};
+}
+function suggest(raw){
+  const q=raw.replace(/\s+/g," ").trim();if(q.length<3)return[];
+  const {street,rest}=splitStreet(q);if(!rest)return[];
+  let r=rest.replace(/[.,]/g," ").replace(/\s+/g," ").trim();
+  const zm=r.match(/\b(\d{5})(?:-\d{4})?\b/);const zip=zm?zm[1]:null;if(zip)r=r.replace(zm[0],"").trim();
+  let st=null;const toks=r.split(" ");
+  if(toks.length>1&&/^[A-Za-z]{2}$/.test(toks[toks.length-1])&&STATES[toks[toks.length-1].toUpperCase()]){st=toks.pop().toUpperCase();r=toks.join(" ")}
+  const cq=r.toLowerCase();
+  const fmt=(e,z)=>{const zz=z||(e.zips.length===1?e.zips[0]:"");return{full:`${street?street+", ":""}${e.city}, ${e.st}${zz?" "+zz:""}`,l1:street||e.city,l2:`${e.city}, ${STATES[e.st]||e.st}${zz?" "+zz:` · ${e.zips.length} ZIP codes`}`}};
+  if(zip&&!cq){const e=ZIPIDX[zip];if(!e)return[];const f=fmt(e,zip);return f.full.toLowerCase()===q.toLowerCase().replace(/,\s*/g,", ")?[]:[f]}
+  if(cq.length<2)return[];
+  const hits=[];for(const e of ENTRIES){if(!e.lc.startsWith(cq))continue;if(st&&e.st!==st)continue;if(zip&&!e.zips.includes(zip))continue;hits.push(e)}
+  hits.sort((a,b)=>(b.lc===cq)-(a.lc===cq)||b.zips.length-a.zips.length||a.city.localeCompare(b.city));
+  const out=hits.slice(0,6).map(e=>fmt(e,zip));
+  if(out.length===1&&out[0].full.toLowerCase()===q.toLowerCase())return[];
+  return out;
+}
+const addr=$("addr"),box=$("sugg");let opts=[],active=-1;
+function closeSugg(){box.hidden=true;active=-1;addr.setAttribute("aria-expanded","false");addr.removeAttribute("aria-activedescendant")}
+const BBOX="-123.65,36.89,-121.2,38.87";
+async function photon(q,layer,limit,signal){const u="https://photon.komoot.io/api/?q="+encodeURIComponent(q)+"&limit="+limit+"&lang=en&bbox="+BBOX+(layer?"&layer="+layer:"");const r=await fetch(u,{signal});if(!r.ok)throw new Error("lookup failed");const j=await r.json();return (j.features||[]).map(f=>f.properties||{}).filter(x=>x.countrycode==="US"&&x.state==="California")}
+const bayZip=z=>z&&/^\d{5}/.test(z)&&ZIPIDX[z.slice(0,5)]?z.slice(0,5):"";
+const isBayCity=c=>!!c&&ENTRIES.some(e=>e.lc===c.toLowerCase());
+let ctl=null,timer=null,zipTimer=null;
+async function remote(v){
+  const m=v.match(/^\s*(\d+[A-Za-z]?(?:-\d+)?)\s+(.+)$/);const num=m?m[1]:"";const frag=(m?m[2]:v).trim();
+  if(frag.length<2||/^\d+$/.test(frag))return[];
+  if(ctl)ctl.abort();ctl=new AbortController();const sig=ctl.signal;
+  try{
+    const [hs,ps]=await Promise.all([num?photon(v.trim(),"house",10,sig).catch(()=>[]):Promise.resolve([]),photon(frag,"street",15,sig)]);
+    const seen=new Map();
+    for(const x of hs){const city=x.city||x.locality||x.district;if(!x.street||!x.housenumber||x.housenumber.toLowerCase()!==num.toLowerCase()||!isBayCity(city))continue;
+      const key=(x.street+"|"+city).toLowerCase();if(!seen.has(key))seen.set(key,{street:x.street,city,zip:bayZip(x.postcode)})}
+    for(const x of ps){const city=x.city||x.locality||x.district;if(!x.name||!city||!isBayCity(city))continue;
+      const key=(x.name+"|"+city).toLowerCase(),z=bayZip(x.postcode);
+      if(!seen.has(key))seen.set(key,{street:x.name,city,zip:z});else if(!seen.get(key).zip&&z)seen.get(key).zip=z}
+    return [...seen.values()].slice(0,6).map(s=>({full:`${num?num+" ":""}${s.street}, ${s.city}, CA${s.zip?" "+s.zip:""}`,l1:`${num?num+" ":""}${s.street}`,l2:`${s.city}, California${s.zip?" "+s.zip:""}`}));
+  }catch(e){return[]}
+}
+async function findZip(a){
+  const lead=a.match(/^\s*(\d+[A-Za-z]?)\s+/);const core=a.replace(/,?\s*(CA|California)\s*$/i,"");
+  try{
+    if(lead){const hs=await photon(core,"house",10);const hit=hs.find(x=>x.housenumber&&x.housenumber.toLowerCase()===lead[1].toLowerCase()&&bayZip(x.postcode));if(hit)return bayZip(hit.postcode)}
+    const ss=await photon(core.replace(/^\s*\d+[A-Za-z]?\s+/,""),"street",6);const s=ss.find(x=>bayZip(x.postcode));if(s)return bayZip(s.postcode);
+  }catch(e){}
+  const lc=", "+a.toLowerCase().replace(/\s*,\s*/g,", ")+",";const c=ENTRIES.find(e=>lc.includes(", "+e.lc+","));
+  return c&&c.zips.length===1?c.zips[0]:"";
+}
+async function fillZip(){
+  const a=addr.value.trim();if(!a||/\b\d{5}\b/.test(a)||!inBay(a))return;
+  const z=await findZip(a);
+  if(z&&addr.value.trim()===a){addr.value=/(,\s*CA|\bCalifornia)\s*$/i.test(a)?a+" "+z:a+", CA "+z;renderLookup();if(S.max>=4)buildPlan()}
+}
+function render(list){
+  const cur=addr.value.trim().toLowerCase();opts=list.filter(o=>o.full.toLowerCase()!==cur).slice(0,6);active=-1;
+  if(!opts.length||document.activeElement!==addr)return closeSugg();
+  box.innerHTML=opts.map((o,i)=>`<li role="option" id="opt${i}" aria-selected="false" data-i="${i}"><span class="l1">${esc(o.l1)}</span><span class="l2">${esc(o.l2)}</span></li>`).join("");
+  box.hidden=false;addr.setAttribute("aria-expanded","true");
+}
+function showSugg(){
+  const v=addr.value;const local=suggest(v);render(local);
+  clearTimeout(timer);clearTimeout(zipTimer);
+  if(!v.includes(",")&&v.trim().length>=3){timer=setTimeout(async()=>{const rem=await remote(v);if(addr.value!==v)return;render([...rem,...local])},180)}
+  else if(v.includes(",")&&!local.length){zipTimer=setTimeout(fillZip,900)}
+}
+function setActive(i){active=i;[...box.children].forEach((li,j)=>li.setAttribute("aria-selected",j===i));addr.setAttribute("aria-activedescendant","opt"+i);box.children[i].scrollIntoView({block:"nearest"})}
+function pick(i){const o=opts[i];if(!o)return;addr.value=o.full;closeSugg();addr.focus();renderLookup();$("err1").hidden=true;fillZip()}
+addr.addEventListener("input",showSugg);addr.addEventListener("focus",showSugg);
+addr.addEventListener("keydown",e=>{if(box.hidden)return;
+  if(e.key==="ArrowDown"){e.preventDefault();setActive((active+1)%opts.length)}
+  else if(e.key==="ArrowUp"){e.preventDefault();setActive((active-1+opts.length)%opts.length)}
+  else if(e.key==="Tab"&&active>=0){e.preventDefault();pick(active)}
+  else if(e.key==="Escape")closeSugg()});
+box.addEventListener("mousedown",e=>{const li=e.target.closest("li");if(li){e.preventDefault();pick(+li.dataset.i)}});
+addr.addEventListener("blur",()=>setTimeout(closeSugg,120));
+
+renderLookup();renderMsg();go(1);
+</script>
+</body></html>
