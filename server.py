@@ -7,7 +7,8 @@ the U.S. Census Bureau geocoder, so results stay inside the voter's county.
 import http.cookiejar, json, os, re, threading, time, urllib.parse, urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-PORT = 8642
+PORT = int(os.environ.get("PORT", 8642))
+HOST = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36"
 SOS = "https://caearlyvoting.sos.ca.gov"
@@ -525,4 +526,4 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
