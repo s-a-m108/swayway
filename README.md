@@ -3,16 +3,6 @@
 
 Get to the polls your way. SwayWay helps Bay Area voters find an official vote center near their address, pick how they'll get there (from walking to a dune buggy), and get real directions for Election Day, Tuesday, Nov 3, 2026.
 
-## Run it locally
-
-Requires Python 3 and `curl` (both come with macOS).
-
-```bash
-python3 server.py
-```
-
-Then open http://localhost:8642.
-
 ## How it works
 
 | Step | What happens | Data source |
