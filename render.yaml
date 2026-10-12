@@ -5,6 +5,3 @@ services:
     plan: free
     buildCommand: "echo no build needed"
     startCommand: "python3 server.py"
-    envVars:
-      - key: GOOGLE_CIVIC_KEY
-        sync: false
