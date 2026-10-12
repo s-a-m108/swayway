@@ -526,12 +526,23 @@ def _space_shape(a, b, n=48):
         out.append([a[0] + (b[0] - a[0]) * t + 0.09 * math.sin(2 * math.pi * t), a[1] + (b[1] - a[1]) * t - 0.32 * h])
     return out
 
+def site_pair(kind, here, target):
+    """Pick departure/arrival sites that keep the ground travel on both ends shortest."""
+    if kind == "fly": return ("your start", here, "your polling place", target)
+    sites = {"water": lambda: {n: tuple(ll) for n, ll in water_grid()["launches"].items()}, "plane": lambda: AIRPORTS, "space": lambda: SPACEPORTS}[kind]()
+    best = None
+    for dn, dp in sites.items():
+        for an, ap in sites.items():
+            if an == dn and kind != "space": continue
+            cost = _km(here, dp) + _km(ap, target)
+            if best is None or cost < best[0]: best = (cost, dn, dp, an, ap)
+    return best[1:]
+
 def special_leg(pk, kind, here, target):
     """Returns (depart_site_name, depart_pt, leg, arrive_site_name, arrive_pt)."""
     v = pk["v"]
     if kind == "water":
-        L = {n: tuple(ll) for n, ll in water_grid()["launches"].items()}
-        dn, dp = _nearest_site(L, here); an, ap = _nearest_site(L, target, exclude=dn)
+        dn, dp, an, ap = site_pair(kind, here, target)
         shape = water_path(dp, ap)
         if not shape: return None
         mi = shape_len(shape) / 1609; sp = speed_mph(kind, v)
@@ -543,7 +554,7 @@ def special_leg(pk, kind, here, target):
                "minutes": max(2, round(mi / sp * 60)), "steps": steps, "estimate": True}
         return dn, dp, leg, an, ap
     if kind == "plane":
-        dn, dp = _nearest_site(AIRPORTS, here); an, ap = _nearest_site(AIRPORTS, target, exclude=dn)
+        dn, dp, an, ap = site_pair(kind, here, target)
         mi = _km(dp, ap) / 1.609; sp = speed_mph(kind, v); big = sp > 150
         steps = [f"Board your {v.lower()} at {dn}" + (" (allow about 45 minutes to check in and board)." if big else "."),
                  f"Take off and fly about {mi:.0f} mi.", f"Land at {an}."]
@@ -558,7 +569,7 @@ def special_leg(pk, kind, here, target):
                "minutes": max(2, round(mi / sp * 60) + 10), "steps": steps, "dashed": True, "estimate": True}
         return "your start", here, leg, "your polling place", target
     if kind == "space":
-        dn, dp = _nearest_site(SPACEPORTS, here); an, ap = _nearest_site(SPACEPORTS, target)
+        dn, dp, an, ap = site_pair(kind, here, target)
         ground = _km(dp, ap) / 1.609
         steps = [f"Lift off in your {v.lower()} from {dn}.",
                  "Climb straight up past the Karman line, 100 km (62 mi) above Earth. You're in space.",
@@ -584,7 +595,18 @@ def special_route(start, end, picks, polys, leg, chain, when):
         if r: r["label"] = f"to {to_name}"; return [r]
         return [{"name": pk["v"], "mode": pk["m"], "label": f"to {to_name}", "shape": [list(a), list(b)], "miles": round(_km(a, b) / 1.609, 2),
                  "minutes": max(1, round(_km(a, b) / (5 if pk["m"] == "walking" else 40) * 60)), "steps": [f"Head to {to_name}."], "estimate": True}]
-    head, tail = (ground[:-1], ground[-1:]) if len(ground) > 1 else (ground, [])
+    import itertools
+    def ground_km(order):
+        h, tot = start, 0.0
+        for pk, kind in order:
+            dn, dp, an, ap = site_pair(kind, h, end); tot += _km(h, dp); h = ap
+        return tot + _km(h, end)
+    if 1 < len(specials) <= 6:
+        specials = list(min(itertools.permutations(specials), key=ground_km))
+    # every ground pick gets used: with transit they all ride to the first launch site,
+    # otherwise they're split between the first and last stretch.
+    if transit or len(ground) < 2: head, tail = ground, []
+    else: head, tail = ground[:-1], ground[-1:]
     for i, (pk, kind) in enumerate(specials):
         sl = special_leg(pk, kind, here, end)
         if not sl: notes.append(f"We couldn't find a way to use the {pk['v'].lower()} on this trip."); continue
