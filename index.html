@@ -223,6 +223,9 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .checks .cb[aria-pressed="true"]{background:var(--purple-text)}
 .checks .cb svg{width:14px;height:14px;color:#fff}
 .checks a{color:var(--purple-text);font-weight:500}
+.promo{display:flex;align-items:center;gap:14px;margin:28px 0 0;padding:18px 22px;border-radius:22px;background:var(--yellow);color:var(--yellow-ink);font-size:17px;line-height:1.4}
+.promo b{font-family:var(--head);font-weight:700;letter-spacing:-.01em}
+.promo-ic{font-size:26px;line-height:1}
 footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
 
 .sugg{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;margin:0;padding:6px;list-style:none;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(20,8,40,.25);max-height:300px;overflow-y:auto}
@@ -339,6 +342,7 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
       </div>
     </div>
 
+    <p class="promo"><span class="promo-ic" aria-hidden="true">🎉</span><span><b>Get 25 voters in your group, and we'll pay up to $500 for your transportation to the polls.</b></span></p>
     <footer>Confirm your polling place and hours with your state or local election office. SwayWay is nonpartisan and free, but does intend to make money. This information may not be accurate.</footer>
   </main>
 </div>
@@ -427,7 +431,7 @@ const ICONS=[[/row ?boat|punt|dinghy/i,"🚣"],[/^walk/i,"🚶"],[/^transit$/i,"
 [/motorhome|\(rv\)|caravan|minivan|van/i,"🚐"],[/semi|tractor-trailer|lorry|ice road/i,"🚛"],[/truck/i,"🚚"],[/golf/i,"⛳"],[/tank|armored|military jeep/i,"🪖"],[/motorcycle|moped|dirt bike|boda/i,"🏍️"],[/rickshaw|tuk-tuk|three-wheeled/i,"🛺"],
 [/electric scooter|kick scooter|scooter/i,"🛴"],[/roller|inline/i,"🛼"],[/skateboard|longboard/i,"🛹"],[/unicycle|tricycle|bicycle|handcycle|kick bike|mountain bike|pedicab|cycle/i,"🚲"],
 [/subway|metro|underground/i,"🚇"],[/tram|streetcar|light rail/i,"🚊"],[/monorail|maglev|people mover|hovertrain|suspended/i,"🚝"],[/steam/i,"🚂"],[/high-speed|bullet/i,"🚄"],[/train|railway|funicular/i,"🚆"],
-[/elephant/i,"🐘"],[/camel/i,"🐫"],[/llama/i,"🦙"],[/donkey|mule/i,"🫏"],[/yak|ox |bullock/i,"🐂"],[/buffalo/i,"🐃"],[/reindeer/i,"🦌"],[/dog ?sled|dogsled/i,"🐕"],[/horse|pack animal|carriage|wagon|sleigh/i,"🐎"],
+[/elephant/i,"🐘"],[/camel/i,"🐫"],[/llama/i,"🦙"],[/donkey|mule/i,"🫏"],[/\byak\b|\box\b|bullock/i,"🐂"],[/buffalo/i,"🐃"],[/reindeer/i,"🦌"],[/dog ?sled|dogsled/i,"🐕"],[/horse|pack animal|carriage|wagon|sleigh/i,"🐎"],
 [/helicopter|autogyro|gyrocopter/i,"🚁"],[/balloon/i,"🎈"],[/airship|blimp|zeppelin/i,"🎈"],[/glider|paraglider|wingsuit|sailplane/i,"🪂"],[/drone|evtol/i,"🛸"],[/private jet|business jet|^jet$/i,"🛩️"],[/plane|airliner|aircraft|air ambulance/i,"✈️"],
 [/chairlift|ski lift|rope tow/i,"🚠"],[/cable car|gondola lift|aerial|ropeway/i,"🚡"],[/zipline/i,"🪢"],[/elevator/i,"🛗"],[/escalator|moving walkway|conveyor/i,"↗️"],
 [/rocket|launch|space shuttle|spaceplane/i,"🚀"],[/rover|lander/i,"🛰️"],[/space/i,"🛰️"],
@@ -580,7 +584,7 @@ async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;c
     const av=j.avoided.length?` · avoids ${j.avoided.map(a=>a.name).join(", ")}`:"";
     const sk=j.skipped.length?`. ${j.skipped.join(", ")} can't be avoided because your start or polling place is inside it.`:"";
     $("routeSum").textContent=j.transit?`Leave ${j.depart} · arrive ${j.arrive} · ${j.minutes} min on Nov 3 schedules${j.avoidIgnored?". Transit routes can't avoid neighborhoods yet.":""}${(j.notes||[]).length?" "+j.notes.join(" "):""}`:`${j.miles} mi · about ${j.minutes} min total${av}${sk}`;setTrip(j.minutes);
-    $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b> · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?" · time is an estimate, check the schedule":""}</small></span></li>`).join("");$("routeLegs").hidden=false;
+    $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b> · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?(lg.mode==="transit"?" · time is an estimate, check the schedule":" · time is an estimate"):""}</small></span></li>`).join("");$("routeLegs").hidden=false;
     $("routeSteps").innerHTML=j.legs.map((lg,i)=>`<li class="lh" style="color:${COLORS[i%COLORS.length]}">${iconFor(lg.name,"")} ${esc(lg.name)}</li>`+lg.steps.map(s=>`<li>${esc(s)}</li>`).join("")).join("");$("routeDetails").hidden=false;
   }catch(e){if(me!==rreq)return;gIframe();setTrip(null);$("routeSum").textContent="Route unavailable right now. Showing Google's route instead."}}
 function gmaps(o,d,m){return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(d)+"&travelmode="+m}
@@ -646,7 +650,7 @@ function rallyHow(){const icons=S.picks.map(p=>iconFor(p.v,"")).join("");
 function planMsg(){
   const d=dest();const lines=[`Want to ${rallyHow()} to the polls with me? Try SwayWay!`];
   if(!d)return lines[0];
-  lines.push(OPENERS[S.msg%OPENERS.length]({when:TIME[S.time].toLowerCase()}),"",`Where: ${d.name==="your polling place"?"":d.name+", "}${d.addr}`);
+  lines[0]+=" "+OPENERS[S.msg%OPENERS.length]({when:TIME[S.time].toLowerCase()});lines.push("",`Where: ${d.name==="your polling place"?"":d.name+", "}${d.addr}`);
   if(S.picks.length>1)lines.push(`How: ${S.picks.map(p=>`${p.v} ${iconFor(p.v,"")}`).join(" + ")}`);
   if(S.tripMin)lines.push(`Trip time: ${fmtMin(S.tripMin).toLowerCase()}`);
   if(S.placeHours)lines.push(`Election Day hours: ${S.placeHours.replace(/(\d)(AM|PM)/g,"$1 $2")}`);
