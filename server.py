@@ -261,12 +261,21 @@ def valhalla(costing, opts, a, b, polys):
     req = {"locations": [{"lat": a[0], "lon": a[1]}, {"lat": b[0], "lon": b[1]}], "costing": costing,
            "costing_options": opts, "directions_options": {"units": "miles"}}
     if polys: req["exclude_polygons"] = polys
-    pr = subprocess.run(["curl", "-s", "--max-time", "25", "-A", "SwayWay/0.1 (local prototype)", "-H", "Content-Type: application/json",
-                         "-d", json.dumps(req), "-w", "\n%{http_code}", VALHALLA], capture_output=True, text=True)
-    out_txt, _, status = pr.stdout.rpartition("\n")
-    try: d = json.loads(out_txt or "{}")
-    except Exception: d = {}
-    if status != "200" or "trip" not in d: return None
+    d = {}
+    try:
+        pr = subprocess.run(["curl", "-s", "--max-time", "20", "-A", "SwayWay/0.1 (local prototype)", "-H", "Content-Type: application/json",
+                             "-d", json.dumps(req), "-w", "\n%{http_code}", VALHALLA], capture_output=True, text=True, timeout=25)
+        out_txt, _, status = pr.stdout.rpartition("\n")
+        if status == "200": d = json.loads(out_txt or "{}")
+    except Exception:
+        d = {}
+    if "trip" not in d:
+        try:
+            rq = urllib.request.Request(VALHALLA, data=json.dumps(req).encode(), headers={"Content-Type": "application/json", "User-Agent": "SwayWay/0.1"})
+            with urllib.request.urlopen(rq, timeout=20) as r: d = json.loads(r.read())
+        except Exception:
+            return None
+    if "trip" not in d: return None
     leg = d["trip"]["legs"][0]; s = d["trip"]["summary"]
     return {"shape": decode6(leg["shape"]), "miles": round(s["length"], 2), "minutes": max(1, round(s["time"] / 60)),
             "steps": [m["instruction"] for m in leg["maneuvers"]]}
@@ -621,7 +630,32 @@ def special_route(start, end, picks, polys, leg, chain, when):
         legs += connect(here, end, "your polling place", tail)
     return legs, notes
 
+SPEED_MPH = {"walking": 3, "bicycling": 10, "driving": 25, "transit": 15, "water": 5, "air": 120, "space": 60}
+def _interp(a, b, n=24):
+    return [[a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n] for i in range(n + 1)]
+
+def straight_leg(pk, a, b):
+    """Used only when the routing service can't answer: a direct path, clearly marked approximate."""
+    mi = _km(a, b) / 1.609 * 1.25
+    return {"name": pk["v"], "mode": pk["m"], "label": "approximate path", "shape": _interp(a, b), "miles": round(mi, 2),
+            "minutes": max(1, round(mi / SPEED_MPH.get(pk["m"], 5) * 60)), "steps": [f"Head toward your next stop by {pk['v'].lower()} (about {mi:.1f} mi)."],
+            "estimate": True, "approx": True}
+
 def route(body):
+    try:
+        return _route_flagged(body)
+    except Exception:
+        start = _start_of(body)
+        if not start: return {"ok": False, "error": "start_not_found"}
+        end = (float(body["toLat"]), float(body["toLon"]))
+        picks = body.get("picks") or [{"v": "Walk", "m": "walking"}]
+        pts = [start] + [tuple(point_at(_interp(start, end), shape_len(_interp(start, end)) * (i + 1) / len(picks))) for i in range(len(picks) - 1)] + [end]
+        legs = [straight_leg(pk, pts[i], pts[i + 1]) for i, pk in enumerate(picks)]
+        return {"ok": True, "start": start, "end": end, "legs": legs, "avoided": [], "skipped": [], "added": [],
+                "notes": ["The routing service had trouble, so this is an approximate path."],
+                "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
+
+def _route_flagged(body):
     """Route, then flag any leg that uses a way of getting around the user didn't pick."""
     out = _route(body)
     if not out.get("ok") or not out.get("legs"): return out
@@ -638,10 +672,19 @@ def route(body):
             l["added"] = True
             if l["name"] not in added: added.append(l["name"])
     out["added"] = added
+    if any(l.get("approx") for l in out["legs"]):
+        out.setdefault("notes", []).append("Some stretches are approximate because the routing service didn't respond.")
     return out
 
+def _start_of(body):
+    try: start = geocode(body.get("from", ""))
+    except Exception: start = None
+    if not start and body.get("fromLat") is not None:
+        start = (float(body["fromLat"]), float(body["fromLon"]))
+    return start
+
 def _route(body):
-    start = geocode(body.get("from", ""))
+    start = _start_of(body)
     if not start: return {"ok": False, "error": "start_not_found"}
     end = (float(body["toLat"]), float(body["toLon"]))
     picks = body.get("picks") or [{"v": body.get("vehicle") or "Walk", "m": body.get("mode", "walking")}]
@@ -659,24 +702,29 @@ def _route(body):
     nt = sorted([pk for pk in picks if pk["m"] != "transit"], key=lambda pk: -RANK[pk["m"]])
     def leg(pk, a, b):
         costing, opts, label = costing_for(pk["v"], pk["m"])
-        r = valhalla(costing, opts, a, b, polys)
-        if r: r.update({"name": pk["v"], "mode": pk["m"], "label": label})
+        r = None
+        if costing:
+            try: r = valhalla(costing, opts, a, b, polys)
+            except Exception: r = None
+            if not r and polys:
+                try: r = valhalla(costing, opts, a, b, [])
+                except Exception: r = None
+                if r: r["avoidSkipped"] = True
+        if not r: r = straight_leg(pk, a, b)
+        r.update({"name": pk["v"], "mode": pk["m"], "label": r.get("label") or label or f"{pk['v'].lower()} route"})
         return r
     def chain(seq, a, b):
-        """Route a->b using every pick in seq, each over its own stretch (fastest first)."""
-        if len(seq) == 1:
-            r = leg(seq[0], a, b); return [r] if r else None
+        """Route a->b using every pick in seq, each over its own stretch (fastest first). Never fails."""
+        if len(seq) == 1: return [leg(seq[0], a, b)]
         base = leg(seq[0], a, b)
-        if not base: return None
-        total = shape_len(base["shape"]); s = sum(W[pk["m"]] for pk in seq); acc = 0; cuts = []
+        shape = base["shape"] if len(base["shape"]) > 2 else _interp(a, b, 24)
+        total = shape_len(shape); s = sum(W.get(pk["m"], 1) for pk in seq); acc = 0; cuts = []
         for pk in seq[:-1]:
-            acc += W[pk["m"]]; cuts.append(point_at(base["shape"], total * acc / s))
-        pts = [a] + cuts + [b]; out = []
-        for i, pk in enumerate(seq):
-            r = leg(pk, pts[i], pts[i + 1])
-            if not r: return None
-            out.append(r)
-        return out
+            acc += W.get(pk["m"], 1); cuts.append(point_at(shape, total * acc / s))
+        pts = [a] + cuts + [b]
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(8) as ex:
+            return list(ex.map(lambda i: leg(seq[i], pts[i], pts[i + 1]), range(len(seq))))
     notes = []
     if any(special_kind(pk) for pk in picks):
         legs, notes = special_route(start, end, picks, polys, leg, chain, body.get("time", "midday"))
@@ -685,7 +733,12 @@ def _route(body):
                 "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
     if transit_picks:
         tr = transit_route(start, end, picks, body.get("time", "midday"))
-        if not tr: return {"ok": True, "fallback": "transit", "start": start, "end": end}
+        if not tr:
+            seq = nt[:1] + transit_picks + nt[1:]
+            legs = chain(seq, start, end)
+            notes.append("Live transit schedules didn't load, so the transit part is an approximate path. Check the schedule before you go.")
+            return {"ok": True, "start": start, "end": end, "legs": legs, "avoided": avoided, "skipped": skipped, "notes": notes,
+                    "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
         legs = tr["legs"]; notes = list(tr["notes"])
         access = [pk for pk in nt]
         if access:
@@ -718,7 +771,6 @@ def _route(body):
                 "avoidIgnored": bool(polys) or bool(skipped), "notes": notes, "depart": tr["depart"], "arrive": tr["arrive"],
                 "miles": round(sum(l["miles"] for l in legs), 1), "minutes": max(tr["minutes"], sum(l["minutes"] for l in legs))}
     legs = chain(nt, start, end)
-    if not legs: return {"ok": False, "error": "no_route"}
     return {"ok": True, "start": start, "end": end, "legs": legs, "avoided": avoided, "skipped": skipped, "notes": notes,
             "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
 
