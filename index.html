@@ -255,7 +255,7 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
     <div class="top">
       <span class="pill-y" id="count">Election Day is Nov 3</span>
       <h1>Get to the polls your way</h1>
-      <p class="sub">Pick your polling place, choose how you'll get there, and get directions. Works anywhere in the U.S.</p>
+      <p class="sub">Pick your polling place, choose how you'll get there, and get directions. Now available in the San Francisco Bay Area.</p>
     </div>
 
     <nav class="tracker" aria-label="Steps">
@@ -275,12 +275,12 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
           <h2>Where are you starting?</h2>
           <form class="bar" id="addrForm" autocomplete="off">
             <svg class="pin" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.3 7 13 7 13s7-7.7 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-            <input type="text" id="addr" name="sw-start" autocomplete="off" placeholder="Enter your address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg" aria-label="Your address">
+            <input type="text" id="addr" name="sw-start" autocomplete="off" placeholder="Enter your Bay Area address" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg" aria-label="Your address">
             <button class="go" type="submit" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
             <ul class="sugg" id="sugg" role="listbox" hidden></ul>
           </form>
-          <p class="err" id="err1" hidden>Enter your full street address, including the city and state or ZIP.</p>
-          <p class="fine">Type your street, then your city and state or ZIP.</p>
+          <p class="err" id="err1" hidden>SwayWay only covers the nine Bay Area counties right now. Enter an address there, including the city or ZIP.</p>
+          <p class="fine">Type your street, then your city or ZIP. Covers the nine Bay Area counties.</p>
         </div>
       </section>
 
@@ -364,7 +364,7 @@ const TIP={
 };
 const S={step:1,max:1,mine:"",mode:"walking",time:"midday",msg:0};
 
-function ptNow(){const p={};new Intl.DateTimeFormat("en-US",{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone,year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);return{y:+p.year,mo:+p.month,d:+p.day,h:+p.hour,mi:+p.minute}}
+function ptNow(){const p={};new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);return{y:+p.year,mo:+p.month,d:+p.day,h:+p.hour,mi:+p.minute}}
 function updateCount(){const t=ptNow(),el=$("count");const days=Math.round((Date.UTC(2026,10,3)-Date.UTC(t.y,t.mo-1,t.d))/864e5);const mins=t.h*60+t.mi;
   let txt,open=false;
   if(days>1)txt=`${days} days to Nov 3`;else if(days===1)txt="1 day to Nov 3";
@@ -504,7 +504,7 @@ function renderVC(){
   $("vcCount").innerHTML=active?`Showing ${shown.length} of ${S.vc.length} vote centers <button type="button" id="vcClear">Clear filters</button>`:"";
   list.innerHTML=shown.length?shown.map(([x,i])=>`<button type="button" class="row" data-vc="${i}" aria-pressed="${S.placeName===titleCase(x.name)}"><span class="ic w">${BUILDING}</span><span class="tx"><span class="t1">${esc(titleCase(x.name))}</span><span class="t2">${esc(titleCase(x.address))}, ${esc(titleCase(x.city))} ${esc(x.zip)}${x.neighborhood?` · ${esc(x.neighborhood)}`:""}</span><span class="tags">${vcTags(x)}</span><span class="tags">${accessTags(x)}</span></span>${x.miles!=null?`<span class="mi">${x.miles} mi</span>`:""}</button>`).join(""):'<p class="vc-status">No nearby vote centers match those filters. Turn one off to see more.</p>';
   const ac=$("vcAccess");ac.hidden=false;
-  ac.innerHTML=`${S.vcState==="CA"?"California law requires every vote center to have at least three accessible voting machines.":"Federal law requires every polling place to have at least one accessible voting machine."}${S.countyLookup?` On Election Day, some counties post wait times; check <a href="${S.countyLookup}" target="_blank" rel="noopener">${esc(S.county||"your")} election office</a>.`:""} Building, parking and transit details come from OpenStreetMap and can be incomplete${S.countyLookup?`, so <a href="${S.countyLookup}" target="_blank" rel="noopener">check with your election office</a> if you need a specific accommodation`:""}.`;
+  ac.innerHTML=`California law requires every vote center to have at least three accessible voting machines.${S.countyLookup?` On Election Day, some counties post wait times; check <a href="${S.countyLookup}" target="_blank" rel="noopener">${esc(S.county)} County Elections</a>.`:""} Building, parking and transit details come from OpenStreetMap and can be incomplete${S.countyLookup?`, so <a href="${S.countyLookup}" target="_blank" rel="noopener">check with ${esc(S.county)} County</a> if you need a specific accommodation`:""}.`;
 }
 async function loadAccess(me){
   const pts=S.vc.filter(x=>x.lat!=null).map(x=>[x.lat,x.lon,x.name]);if(!pts.length)return;
@@ -541,17 +541,17 @@ let vcReq=0;
 async function loadVC(){
   const list=$("vcList"),note=$("vcNote"),a=$("addr").value.trim(),me=++vcReq;
   const parts=a.split(",").map(s=>s.trim());const zip=(a.match(/\b(\d{5})\b(?!.*\b\d{5}\b)/)||[])[1]||"";
-  const st=stateOf(a)||"";const q=new URLSearchParams({street:parts[0]||"",city:(parts[1]||"").replace(/\b[A-Z]{2}\b\s*\d{5}.*$/,"").replace(new RegExp("\\b"+(st||"@@")+"\\b.*$"),"").trim(),state:st,zip});
+  const q=new URLSearchParams({street:parts[0]||"",city:(parts[1]||"").replace(/\bCA\b.*$/i,"").trim(),zip});
   list.innerHTML='<p class="vc-status">Finding official vote centers near you…</p>';note.hidden=true;S.vc=[];$("vcFilters").hidden=true;$("vcAccess").hidden=true;
   try{
     const r=await fetch("/api/vote-centers?"+q);const d=await r.json();if(me!==vcReq)return;
-    if(!d.ok){list.innerHTML="";note.hidden=false;note.textContent="We couldn't match that address. Check the street, city, state and ZIP and try again.";return}
-    S.vc=d.results;S.county=d.county;S.vcState=d.state;S.countyLookup=d.countyLookup;renderVC();loadAccess(me);
-    if(!d.results.length){note.hidden=false;const off=d.countyLookup||lookupFor(d.state);note.innerHTML=`Polling places for this address aren't published yet. Election offices usually post them a few weeks before Election Day. Look yours up on <a href="${off}" target="_blank" rel="noopener">the official site</a>.`}
+    if(!d.ok){list.innerHTML="";note.hidden=false;note.textContent=d.error==="outside_bay"?"That address isn't in one of the nine Bay Area counties.":"We couldn't match that address. Check the street, city and ZIP and try again.";return}
+    S.vc=d.results;S.county=d.county;S.countyLookup=d.countyLookup;renderVC();loadAccess(me);
+    if(!d.results.length){note.hidden=false;note.textContent=`No vote centers are listed near this address yet.`}
   }catch(e){if(me!==vcReq)return;list.innerHTML="";note.hidden=false;note.textContent="Vote centers couldn't load right now. Try again in a moment."}
 }
 $("vcList").addEventListener("click",e=>{const b=e.target.closest("[data-vc]");if(!b)return;const x=S.vc[+b.dataset.vc];
-  S.placeName=titleCase(x.name);S.placeLat=x.lat;S.placeLon=x.lon;S.placeHours=(x.hours.match(/Election Day:\s*([^;]+)/)||[])[1]||"";S.mine=`${titleCase(x.address)}, ${titleCase(x.city)}, ${x.state||S.vcState||"CA"} ${x.zip}`;
+  S.placeName=titleCase(x.name);S.placeLat=x.lat;S.placeLon=x.lon;S.placeHours=(x.hours.match(/Election Day:\s*([^;]+)/)||[])[1]||"";S.mine=`${titleCase(x.address)}, ${titleCase(x.city)}, CA ${x.zip}`;
   document.querySelectorAll("#vcList .row").forEach(r=>r.setAttribute("aria-pressed",r===b));if(S.max>=4)buildPlan();advance(3)});
 
 let rmap=null,rtimer=null,rreq=0;
@@ -621,11 +621,11 @@ function buildPlan(){
     `Check your polling hours and whether your state asks for ID. <a href="https://www.canivote.org" target="_blank" rel="noopener">CanIVote.org</a> lists the rules.`,
     S.mode==="transit"?"Check service alerts that morning. Schedules can change.":S.mode==="driving"?"Look up parking near the polling place before you leave.":S.mode==="bicycling"?"Plan where you'll lock your bike near the entrance.":"Wear comfortable shoes in case there's a line.",
     `Preview your ballot on <a href="https://www.sway.co/" target="_blank" rel="noopener">Sway</a> so you're ready when you get there.`
-    ,st==="CA"?`<b>ID.</b> Most California voters don't need to show ID. If it's your first time voting and you registered without a driver's license or Social Security number, you may be asked for one.`:`<b>ID.</b> ID rules differ by state. <a href="https://www.canivote.org" target="_blank" rel="noopener">CanIVote.org</a> lists what ${esc(STATES[st]||"your state")} asks for.`
+    ,`<b>ID.</b> Most California voters don't need to show ID. If it's your first time voting and you registered without a driver's license or Social Security number, you may be asked for one.`
     ,`<b>Bringing kids.</b> Children under 18 can come into the voting booth with you.`
     ,`<b>Help marking your ballot.</b> You can bring up to two people to help, as long as they aren't your employer or union representative.`
-    ,`<b>Language help.</b> Many counties are required to offer ballots and help in other languages. Ask a poll worker.`
-    ,`<b>No campaigning.</b> Campaigning isn't allowed near a polling place. Tell a poll worker if anyone bothers you.`
+    ,`<b>Language help.</b> Every vote center must offer help in the languages your county is required to cover.`
+    ,`<b>No campaigning.</b> Campaigning isn't allowed within 100 feet of a polling place. Tell a poll worker if anyone bothers you.`
     ,`<b>Lines at closing.</b> If you're in line when polls close, you can still vote.`
   ];
   $("checks").innerHTML=items.map(t=>`<li><button class="cb" type="button" aria-pressed="false" aria-label="Mark done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button><span>${t}</span></li>`).join("");
@@ -665,9 +665,7 @@ const US_DATA=window.US_DATA||"";
 const ENTRIES=US_DATA?US_DATA.split(";").map(r=>{const [st,city,z]=r.split("|");return{st,city,lc:city.toLowerCase(),zips:z.split(",")}}):[];
 const ZIPIDX={};ENTRIES.forEach(e=>e.zips.forEach(z=>{if(!ZIPIDX[z])ZIPIDX[z]=e}));
 const SUFFIX=/\b(st|street|ave|avenue|av|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|pkwy|parkway|hwy|highway|ter|terrace|cir|circle|sq|square|trl|trail|loop|row|plz|plaza|pike|walk|path|broadway)\.?(?=\s|$)/gi;
-function inBay(a){return validAddr(a)}
-function validAddr(a){return /\d/.test(a)&&a.trim().split(/[\s,]+/).length>=3}
-function inBayOld(a){const zs=a.match(/\b\d{5}\b/g);if(zs)return!!ZIPIDX[zs[zs.length-1]];const lc=", "+a.toLowerCase().replace(/\s+/g," ").replace(/\s*,\s*/g,", ")+",";return ENTRIES.some(e=>lc.includes(", "+e.lc+","))}
+function inBay(a){const zs=a.match(/\b\d{5}\b/g);if(zs)return!!ZIPIDX[zs[zs.length-1]];const lc=", "+a.toLowerCase().replace(/\s+/g," ").replace(/\s*,\s*/g,", ")+",";return ENTRIES.some(e=>lc.includes(", "+e.lc+","))}
 function splitStreet(q){
   const parts=q.split(",");
   if(parts.length>1)return{street:parts[0].trim(),rest:parts.slice(1).join(" ").trim()};
@@ -697,10 +695,9 @@ function suggest(raw){
 const addr=$("addr"),box=$("sugg");let opts=[],active=-1;
 function closeSugg(){box.hidden=true;active=-1;addr.setAttribute("aria-expanded","false");addr.removeAttribute("aria-activedescendant")}
 const BBOX="-123.65,36.89,-121.2,38.87";
-async function photon(q,layer,limit,signal){const u="https://photon.komoot.io/api/?q="+encodeURIComponent(q)+"&limit="+limit+"&lang=en"+(layer?"&layer="+layer:"");const r=await fetch(u,{signal});if(!r.ok)throw new Error("lookup failed");const j=await r.json();return (j.features||[]).map(f=>f.properties||{}).filter(x=>x.countrycode==="US"&&ABBR[(x.state||"").toLowerCase()])}
-const ABBR={};Object.entries(STATES).forEach(([k,v])=>ABBR[v.toLowerCase()]=k);
-const bayZip=z=>z&&/^\d{5}/.test(z)?z.slice(0,5):"";
-const isBayCity=c=>!!c;
+async function photon(q,layer,limit,signal){const u="https://photon.komoot.io/api/?q="+encodeURIComponent(q)+"&limit="+limit+"&lang=en&bbox="+BBOX+(layer?"&layer="+layer:"");const r=await fetch(u,{signal});if(!r.ok)throw new Error("lookup failed");const j=await r.json();return (j.features||[]).map(f=>f.properties||{}).filter(x=>x.countrycode==="US"&&x.state==="California")}
+const bayZip=z=>z&&/^\d{5}/.test(z)&&ZIPIDX[z.slice(0,5)]?z.slice(0,5):"";
+const isBayCity=c=>!!c&&ENTRIES.some(e=>e.lc===c.toLowerCase());
 let ctl=null,timer=null,zipTimer=null;
 async function remote(v){
   const m=v.match(/^\s*(\d+[A-Za-z]?(?:-\d+)?)\s+(.+)$/);const num=m?m[1]:"";const frag=(m?m[2]:v).trim();
@@ -710,26 +707,26 @@ async function remote(v){
     const [hs,ps]=await Promise.all([num?photon(v.trim(),"house",10,sig).catch(()=>[]):Promise.resolve([]),photon(frag,"street",15,sig)]);
     const seen=new Map();
     for(const x of hs){const city=x.city||x.locality||x.district;if(!x.street||!x.housenumber||x.housenumber.toLowerCase()!==num.toLowerCase()||!isBayCity(city))continue;
-      const key=(x.street+"|"+city+"|"+x.state).toLowerCase();if(!seen.has(key))seen.set(key,{street:x.street,city,st:ABBR[x.state.toLowerCase()],zip:bayZip(x.postcode)})}
+      const key=(x.street+"|"+city).toLowerCase();if(!seen.has(key))seen.set(key,{street:x.street,city,zip:bayZip(x.postcode)})}
     for(const x of ps){const city=x.city||x.locality||x.district;if(!x.name||!city||!isBayCity(city))continue;
-      const key=(x.name+"|"+city+"|"+x.state).toLowerCase(),z=bayZip(x.postcode);
-      if(!seen.has(key))seen.set(key,{street:x.name,city,st:ABBR[x.state.toLowerCase()],zip:z});else if(!seen.get(key).zip&&z)seen.get(key).zip=z}
-    return [...seen.values()].slice(0,6).map(s=>({full:`${num?num+" ":""}${s.street}, ${s.city}, ${s.st}${s.zip?" "+s.zip:""}`,l1:`${num?num+" ":""}${s.street}`,l2:`${s.city}, ${STATES[s.st]}${s.zip?" "+s.zip:""}`}));
+      const key=(x.name+"|"+city).toLowerCase(),z=bayZip(x.postcode);
+      if(!seen.has(key))seen.set(key,{street:x.name,city,zip:z});else if(!seen.get(key).zip&&z)seen.get(key).zip=z}
+    return [...seen.values()].slice(0,6).map(s=>({full:`${num?num+" ":""}${s.street}, ${s.city}, CA${s.zip?" "+s.zip:""}`,l1:`${num?num+" ":""}${s.street}`,l2:`${s.city}, California${s.zip?" "+s.zip:""}`}));
   }catch(e){return[]}
 }
 async function findZip(a){
-  const lead=a.match(/^\s*(\d+[A-Za-z]?)\s+/);const st0=stateOf(a);const core=st0?a.replace(new RegExp(",?\\s*("+st0+"|"+STATES[st0]+")\\s*$","i"),"")+", "+STATES[st0]:a;
+  const lead=a.match(/^\s*(\d+[A-Za-z]?)\s+/);const core=a.replace(/,?\s*(CA|California)\s*$/i,"");
   try{
-    if(lead){const hs=await photon(core,"house",10);const hit=hs.find(x=>x.housenumber&&x.housenumber.toLowerCase()===lead[1].toLowerCase()&&bayZip(x.postcode)&&(!st0||ABBR[(x.state||"").toLowerCase()]===st0));if(hit)return (st0?"":(ABBR[(hit.state||"").toLowerCase()]||"")+" ")+bayZip(hit.postcode)}
-    const ss=await photon(core.replace(/^\s*\d+[A-Za-z]?\s+/,""),"street",6);const s=ss.find(x=>bayZip(x.postcode)&&(!st0||ABBR[(x.state||"").toLowerCase()]===st0));if(s)return (st0?"":(ABBR[(s.state||"").toLowerCase()]||"")+" ")+bayZip(s.postcode);
+    if(lead){const hs=await photon(core,"house",10);const hit=hs.find(x=>x.housenumber&&x.housenumber.toLowerCase()===lead[1].toLowerCase()&&bayZip(x.postcode));if(hit)return bayZip(hit.postcode)}
+    const ss=await photon(core.replace(/^\s*\d+[A-Za-z]?\s+/,""),"street",6);const s=ss.find(x=>bayZip(x.postcode));if(s)return bayZip(s.postcode);
   }catch(e){}
   const lc=", "+a.toLowerCase().replace(/\s*,\s*/g,", ")+",";const c=ENTRIES.find(e=>lc.includes(", "+e.lc+","));
-  return c&&c.zips.length===1?(st0?"":c.st+" ")+c.zips[0]:"";
+  return c&&c.zips.length===1?c.zips[0]:"";
 }
 async function fillZip(){
   const a=addr.value.trim();if(!a||/\b\d{5}\b/.test(a)||!inBay(a))return;
   const z=await findZip(a);
-  if(z&&addr.value.trim()===a){addr.value=stateOf(a)?a+" "+z.trim():a+", "+z.trim();renderLookup();if(S.max>=4)buildPlan()}
+  if(z&&addr.value.trim()===a){addr.value=/(,\s*CA|\bCalifornia)\s*$/i.test(a)?a+" "+z:a+", CA "+z;renderLookup();if(S.max>=4)buildPlan()}
 }
 function render(list){
   const cur=addr.value.trim().toLowerCase();opts=list.filter(o=>o.full.toLowerCase()!==cur).slice(0,6);active=-1;
