@@ -622,6 +622,25 @@ def special_route(start, end, picks, polys, leg, chain, when):
     return legs, notes
 
 def route(body):
+    """Route, then flag any leg that uses a way of getting around the user didn't pick."""
+    out = _route(body)
+    if not out.get("ok") or not out.get("legs"): return out
+    picks = body.get("picks") or [{"v": body.get("vehicle") or "Walk", "m": body.get("mode", "walking")}]
+    names = {pk["v"].lower() for pk in picks}
+    any_transit = any(pk["m"] == "transit" for pk in picks)
+    walkish = any(pk["m"] == "walking" and not special_kind(pk) for pk in picks)
+    added = []
+    for l in out["legs"]:
+        n = l["name"].lower()
+        ok = (n in names or (l["mode"] == "transit" and any_transit)
+              or (n in ("walk", "wheelchair", "stroller") and (walkish or n in names)))
+        if not ok:
+            l["added"] = True
+            if l["name"] not in added: added.append(l["name"])
+    out["added"] = added
+    return out
+
+def _route(body):
     start = geocode(body.get("from", ""))
     if not start: return {"ok": False, "error": "start_not_found"}
     end = (float(body["toLat"]), float(body["toLon"]))
