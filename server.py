@@ -1,10 +1,11 @@
 """SwayWay local server: serves the app and looks up official vote centers.
 
-Vote centers come from the California Secretary of State's early voting /
-vote center lookup (caearlyvoting.sos.ca.gov). The voter's county comes from
-the U.S. Census Bureau geocoder, so results stay inside the voter's county.
+Polling places come from the Google Civic Information API (nationwide, needs a free
+key in the GOOGLE_CIVIC_KEY environment variable) and, for California, from the
+Secretary of State's vote center lookup (caearlyvoting.sos.ca.gov). Addresses are
+matched with the U.S. Census Bureau geocoder.
 """
-import http.cookiejar, json, os, re, threading, time, urllib.parse, urllib.request
+import http.cookiejar, json, math, os, re, threading, time, urllib.error, urllib.parse, urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("PORT", 8642))
@@ -12,8 +13,15 @@ HOST = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36"
 SOS = "https://caearlyvoting.sos.ca.gov"
-COUNTY_IDS = {"Alameda": 1, "Contra Costa": 7, "Marin": 21, "Napa": 28, "San Francisco": 38,
-              "San Mateo": 41, "Santa Clara": 43, "Solano": 48, "Sonoma": 49}
+CIVIC_KEY = os.environ.get("GOOGLE_CIVIC_KEY", "").strip()
+CA_COUNTIES = ["Alameda", "Alpine", "Amador", "Butte", "Calaveras", "Colusa", "Contra Costa", "Del Norte",
+    "El Dorado", "Fresno", "Glenn", "Humboldt", "Imperial", "Inyo", "Kern", "Kings", "Lake", "Lassen",
+    "Los Angeles", "Madera", "Marin", "Mariposa", "Mendocino", "Merced", "Modoc", "Mono", "Monterey", "Napa",
+    "Nevada", "Orange", "Placer", "Plumas", "Riverside", "Sacramento", "San Benito", "San Bernardino",
+    "San Diego", "San Francisco", "San Joaquin", "San Luis Obispo", "San Mateo", "Santa Barbara", "Santa Clara",
+    "Santa Cruz", "Shasta", "Sierra", "Siskiyou", "Solano", "Sonoma", "Stanislaus", "Sutter", "Tehama",
+    "Trinity", "Tulare", "Tuolumne", "Ventura", "Yolo", "Yuba"]
+COUNTY_IDS = {c: i + 1 for i, c in enumerate(CA_COUNTIES)}
 LOOKUPS = {
     "San Francisco": "https://www.sf.gov/departments/department-elections",
     "Alameda": "https://acvote.alamedacountyca.gov",
@@ -45,14 +53,56 @@ def _ensure_session():
             _session_at = time.time()
 
 def county_for(address):
+    """Census geocoder: returns {county, state, matched, lat, lon} for any U.S. address, or None."""
     q = urllib.parse.urlencode({"address": address, "benchmark": "Public_AR_Current",
                                 "vintage": "Current_Current", "layers": "Counties", "format": "json"})
     d = json.loads(_get("https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?" + q))
     m = d.get("result", {}).get("addressMatches", [])
     if not m:
-        return None, None
-    name = m[0]["geographies"]["Counties"][0]["NAME"].replace(" County", "")
-    return name, m[0]["matchedAddress"]
+        return None
+    m = m[0]
+    cs = m.get("geographies", {}).get("Counties") or [{}]
+    name = re.sub(r" (County|Parish|Borough|Census Area|Municipality|city and borough)$", "", cs[0].get("NAME", ""))
+    comp = m.get("addressComponents", {})
+    return {"county": name or None, "state": comp.get("state"), "matched": m.get("matchedAddress"),
+            "lat": m["coordinates"]["y"], "lon": m["coordinates"]["x"]}
+
+def _miles(a, b, c, d):
+    if None in (a, b, c, d): return None
+    r = 3958.8; p1, p2 = math.radians(a), math.radians(c)
+    h = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(d - b) / 2) ** 2
+    return round(2 * r * math.asin(math.sqrt(h)), 1)
+
+def civic(address, home):
+    """Google Civic Information API voterinfo: official polling places, early voting and drop boxes nationwide."""
+    q = urllib.parse.urlencode({"address": address, "key": CIVIC_KEY})
+    try:
+        d = json.loads(_get("https://www.googleapis.com/civicinfo/v2/voterinfo?" + q, timeout=20))
+    except urllib.error.HTTPError as e:
+        try: msg = json.loads(e.read()).get("error", {}).get("message", "")
+        except Exception: msg = ""
+        return None, msg
+    out, seen = [], set()
+    def add(kind, loc):
+        a = loc.get("address", {})
+        k = (a.get("line1", "").lower(), kind)
+        if k in seen: return
+        seen.add(k)
+        hrs = (loc.get("pollingHours") or "").strip()
+        label = {"poll": "Election Day", "early": "Early voting", "drop": "Ballot drop-off"}[kind]
+        lat, lon = loc.get("latitude"), loc.get("longitude")
+        out.append({"name": a.get("locationName") or label, "address": ", ".join(x for x in [a.get("line1"), a.get("line2")] if x),
+                    "city": a.get("city", ""), "state": a.get("state", ""), "zip": a.get("zip", ""),
+                    "hours": f"{label}: {hrs}" if hrs else label, "kind": kind,
+                    "dropOff": kind == "drop", "sameDayRegistration": False, "notes": loc.get("notes", ""),
+                    "lat": lat, "lon": lon, "miles": _miles(home.get("lat"), home.get("lon"), lat, lon) if home else None})
+    for loc in d.get("pollingLocations", []): add("poll", loc)
+    for loc in d.get("earlyVoteSites", []): add("early", loc)
+    for loc in d.get("dropOffLocations", []): add("drop", loc)
+    st = (d.get("state") or [{}])[0]
+    body = st.get("electionAdministrationBody", {})
+    link = body.get("votingLocationFinderUrl") or body.get("electionInfoUrl")
+    return {"results": out, "link": link, "election": d.get("election", {}).get("name")}, None
 
 def vote_centers(street, city, zip_):
     _ensure_session()
@@ -76,43 +126,68 @@ def neighborhood(lat, lon):
             return None
     return _hood_cache[k]
 
-def lookup(params):
-    street = params.get("street", "").strip()
-    city = params.get("city", "").strip()
-    zip_ = params.get("zip", "").strip()
-    key = (street.lower(), city.lower(), zip_)
-    if key in _cache and time.time() - _cache[key][0] < 900:
-        return _cache[key][1]
-    try:
-        county, matched = county_for(f"{street}, {city}, CA {zip_}".strip())
-    except Exception:
-        county, matched = None, None
+def _ca_rows(street, city, zip_, county):
     allrows = sorted(vote_centers(street, city, zip_), key=lambda r: r.get("distanceToVoteCenter") or 999)
     if county is None and allrows:
         ids = {v: k for k, v in COUNTY_IDS.items()}
         county = ids.get(allrows[0].get("countyID"))
-    if county not in COUNTY_IDS:
-        out = {"ok": False, "error": "outside_bay" if county else "address_not_found", "county": county}
-    else:
-        rows = [r for r in allrows if r.get("countyID") == COUNTY_IDS[county]]
-        rows.sort(key=lambda r: r.get("distanceToVoteCenter") or 999)
-        out = {"ok": True, "county": county, "matchedAddress": matched, "countyLookup": LOOKUPS.get(county),
-               "results": [{
-                   "name": re.sub(r"\s+", " ", r["voteCenterName"]).strip(),
-                   "address": ", ".join(x for x in [r.get("address1"), r.get("address2")] if x),
-                   "city": r.get("city", ""), "zip": r.get("zipCode", ""),
-                   "miles": r.get("distanceToVoteCenter"),
-                   "hours": r.get("operationPeriod", ""),
-                   "dropOff": bool(r.get("isDropOffLocation")),
-                   "sameDayRegistration": bool(r.get("isCVRAvailable")),
-                   "notes": r.get("locationNotes", ""),
-                   "lat": float(r["latitude"]) if r.get("latitude") else None,
-                   "lon": float(r["longitude"]) if r.get("longitude") else None,
-               } for r in rows[:8]]}
+    rows = [r for r in allrows if county in COUNTY_IDS and r.get("countyID") == COUNTY_IDS[county]]
+    return county, [{
+        "name": re.sub(r"\s+", " ", r["voteCenterName"]).strip(),
+        "address": ", ".join(x for x in [r.get("address1"), r.get("address2")] if x),
+        "city": r.get("city", ""), "state": "CA", "zip": r.get("zipCode", ""),
+        "miles": r.get("distanceToVoteCenter"),
+        "hours": r.get("operationPeriod", ""), "kind": "center",
+        "dropOff": bool(r.get("isDropOffLocation")),
+        "sameDayRegistration": bool(r.get("isCVRAvailable")),
+        "notes": r.get("locationNotes", ""),
+        "lat": float(r["latitude"]) if r.get("latitude") else None,
+        "lon": float(r["longitude"]) if r.get("longitude") else None,
+    } for r in rows[:8]]
+
+def lookup(params):
+    street = params.get("street", "").strip()
+    city = params.get("city", "").strip()
+    state = params.get("state", "").strip().upper()
+    zip_ = params.get("zip", "").strip()
+    key = (street.lower(), city.lower(), state, zip_)
+    if key in _cache and time.time() - _cache[key][0] < 900:
+        return _cache[key][1]
+    full = ", ".join(x for x in [street, city, f"{state} {zip_}".strip()] if x)
+    try:
+        home = county_for(full)
+    except Exception:
+        home = None
+    if home:
+        state = home.get("state") or state
+    if not home and not state:
+        return {"ok": False, "error": "address_not_found"}
+    county = (home or {}).get("county")
+    out = {"ok": True, "county": county, "state": state, "matchedAddress": (home or {}).get("matched"),
+           "countyLookup": LOOKUPS.get(county) if state == "CA" else None, "results": [], "source": None}
+    civ_err = None
+    if CIVIC_KEY:
+        res, civ_err = civic((home or {}).get("matched") or full, home)
+        if res and res["results"]:
+            res["results"].sort(key=lambda r: (r["kind"] != "poll", r["miles"] if r["miles"] is not None else 999))
+            out.update(results=res["results"][:10], source="civic", election=res["election"])
+            out["countyLookup"] = out["countyLookup"] or res["link"]
+    if not out["results"] and state == "CA":
+        try:
+            county, rows = _ca_rows(street, city, zip_, county)
+            out.update(county=county, results=rows, source="ca_sos")
+            out["countyLookup"] = out["countyLookup"] or LOOKUPS.get(county)
+        except Exception:
+            pass
+    if not out["results"]:
+        out["error"] = "no_data"
+        out["needsKey"] = not CIVIC_KEY
+        out["civicError"] = civ_err
+    if out["results"]:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(8) as ex:
-            hoods = list(ex.map(lambda x: neighborhood(x["lat"], x["lon"]), out["results"]))
-        for x, hd in zip(out["results"], hoods):
+            hoods_ = list(ex.map(lambda x: neighborhood(x["lat"], x["lon"]), out["results"]))
+        for x, hd in zip(out["results"], hoods_):
             x["neighborhood"] = (hd or {}).get("name")
             x["hoodCity"] = (hd or {}).get("city")
     _cache[key] = (time.time(), out)
@@ -212,7 +287,7 @@ def geocode(addr):
         if m: return m[0]["coordinates"]["y"], m[0]["coordinates"]["x"]
     except Exception:
         pass
-    d = json.loads(_get("https://photon.komoot.io/api/?q=" + urllib.parse.quote(addr) + "&limit=1&lang=en&bbox=-123.65,36.89,-121.2,38.87"))
+    d = json.loads(_get("https://photon.komoot.io/api/?q=" + urllib.parse.quote(addr) + "&limit=1&lang=en"))
     f = d.get("features") or []
     if f:
         lo, la = f[0]["geometry"]["coordinates"]; return la, lo
