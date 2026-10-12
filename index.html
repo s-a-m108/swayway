@@ -429,12 +429,12 @@ function phrase(p){return COMMON_PHRASE[p.v]||p.v.toLowerCase()+" ride"}
 function how(){return S.picks.map(phrase).join(" + ")}
 function howHTML(){return S.picks.map(p=>`${esc(phrase(p))} <span class="h3icon" aria-hidden="true">${iconFor(p.v,"")}</span>`).join(" + ")}
 const ICONS=[[/row ?boat|punt|dinghy/i,"🚣"],[/^walk/i,"🚶"],[/^transit$/i,"🚆"],[/^drive$/i,"🚗"],[/^bike$/i,"🚲"],[/wheelchair/i,"🦽"],[/running/i,"🏃"],[/stroller/i,"👶"],[/carpool/i,"🚗"],[/forklift/i,"🏗️"],
-[/ambulance/i,"🚑"],[/fire (truck|engine)/i,"🚒"],[/police/i,"🚓"],[/school bus/i,"🚌"],[/bus|matatu|jeepney|dolmu|marshrutka|tro-tro|daladala|angkot|bemo|songthaew/i,"🚌"],[/taxi|rideshare|cab/i,"🚕"],[/limousine/i,"🚘"],[/pickup/i,"🛻"],
-[/motorhome|\(rv\)|caravan|minivan|van/i,"🚐"],[/semi|tractor-trailer|lorry|ice road/i,"🚛"],[/truck/i,"🚚"],[/golf/i,"⛳"],[/tank|armored|military jeep/i,"🪖"],[/motorcycle|moped|dirt bike|boda/i,"🏍️"],[/rickshaw|tuk-tuk|three-wheeled/i,"🛺"],
+[/ambulance/i,"🚑"],[/fire (truck|engine)/i,"🚒"],[/police/i,"🚓"],[/school bus/i,"🚌"],[/bus\b|matatu|jeepney|dolmu|marshrutka|tro-tro|daladala|angkot|bemo|songthaew/i,"🚌"],[/taxi|rideshare|\bcab\b/i,"🚕"],[/limousine/i,"🚘"],[/pickup/i,"🛻"],
+[/motorhome|\(rv\)|caravan|minivan|van/i,"🚐"],[/semi|tractor-trailer|lorry|ice road/i,"🚛"],[/truck/i,"🚚"],[/golf/i,"⛳"],[/\btank\b|armored|military jeep/i,"🪖"],[/motorcycle|moped|dirt bike|boda/i,"🏍️"],[/rickshaw|tuk-tuk|three-wheeled/i,"🛺"],
 [/electric scooter|kick scooter|scooter/i,"🛴"],[/roller|inline/i,"🛼"],[/skateboard|longboard/i,"🛹"],[/unicycle|tricycle|bicycle|handcycle|kick bike|mountain bike|pedicab|cycle/i,"🚲"],
-[/subway|metro|underground/i,"🚇"],[/tram|streetcar|light rail/i,"🚊"],[/monorail|maglev|people mover|hovertrain|suspended/i,"🚝"],[/steam/i,"🚂"],[/high-speed|bullet/i,"🚄"],[/train|railway|funicular/i,"🚆"],
+[/subway|metro|underground/i,"🚇"],[/\btram\b|streetcar|light rail/i,"🚊"],[/monorail|maglev|people mover|hovertrain|suspended/i,"🚝"],[/steam train/i,"🚂"],[/high-speed|bullet/i,"🚄"],[/train|railway|funicular/i,"🚆"],
 [/elephant/i,"🐘"],[/camel/i,"🐫"],[/llama/i,"🦙"],[/donkey|mule/i,"🫏"],[/\byak\b|\box\b|bullock/i,"🐂"],[/buffalo/i,"🐃"],[/reindeer/i,"🦌"],[/dog ?sled|dogsled/i,"🐕"],[/horse|pack animal|carriage|wagon|sleigh/i,"🐎"],
-[/helicopter|autogyro|gyrocopter/i,"🚁"],[/balloon/i,"🎈"],[/airship|blimp|zeppelin/i,"🎈"],[/glider|paraglider|wingsuit|sailplane/i,"🪂"],[/drone|evtol/i,"🛸"],[/private jet|business jet|^jet$/i,"🛩️"],[/plane|airliner|aircraft|air ambulance/i,"✈️"],
+[/helicopter|autogyro|gyrocopter/i,"🚁"],[/balloon/i,"🎈"],[/airship|blimp|zeppelin/i,"🎈"],[/glider|paraglider|wingsuit|sailplane/i,"🪂"],[/drone|evtol/i,"🛸"],[/private jet|business jet|^jet$/i,"🛩️"],[/\bplane\b|airplane|seaplane|airliner|aircraft|air ambulance/i,"✈️"],
 [/chairlift|ski lift|rope tow/i,"🚠"],[/cable car|gondola lift|aerial|ropeway/i,"🚡"],[/zipline/i,"🪢"],[/elevator/i,"🛗"],[/escalator|moving walkway|conveyor/i,"↗️"],
 [/rocket|launch|space shuttle|spaceplane/i,"🚀"],[/rover|lander/i,"🛰️"],[/space/i,"🛰️"],
 [/ferry/i,"⛴️"],[/cruise|liner|ship|tanker|carrier|icebreaker|container/i,"🚢"],[/yacht|cruiser|speedboat|motorboat|power catamaran/i,"🛥️"],[/canoe|kayak|coracle|dragon boat/i,"🛶"],[/surf|paddleboard/i,"🏄"],
@@ -568,10 +568,15 @@ function gIframe(){if(rmap){rmap.remove();rmap=null}if($("routeLegs"))$("routeLe
 async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;const o=$("addr").value.trim();
   if(S.placeLat==null||!window.L){gIframe();$("routeSum").textContent="";return}
   $("routeSum").textContent="Finding the best route…";
-  try{const r=await fetch("/api/route",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from:o,toLat:S.placeLat,toLon:S.placeLon,vehicle:S.vehicle,mode:S.mode,picks:S.picks,avoid:[...S.avoid],time:S.time})});
-    const j=await r.json();if(me!==rreq)return;
-    if(j.fallback==="transit"){gIframe();setTrip(null);$("routeSum").textContent=S.avoid.size?"Transit directions come from Google Maps and can't avoid neighborhoods.":"Transit directions come from Google Maps.";return}
-    if(!j.ok){gIframe();setTrip(null);$("routeSum").textContent=j.error==="no_route"?"We couldn't find a route that avoids those neighborhoods. Showing Google's route instead.":"Route unavailable right now. Showing Google's route instead.";return}
+  try{let j=null;const st0=await startPoint(o);if(me!==rreq)return;
+    for(let tries=0;tries<2&&!(j&&j.ok&&j.legs&&j.legs.length);tries++){
+      try{const ctl=new AbortController();const tm=setTimeout(()=>ctl.abort(),90000);
+        const r=await fetch("/api/route",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({from:o,fromLat:st0?st0[0]:null,fromLon:st0?st0[1]:null,toLat:S.placeLat,toLon:S.placeLon,vehicle:S.vehicle,mode:S.mode,picks:S.picks,avoid:[...S.avoid],time:S.time})});
+        clearTimeout(tm);j=await r.json()}catch(e){j=null}
+      if(me!==rreq)return}
+    if(!(j&&j.ok&&j.legs&&j.legs.length))j=await sketchRoute(o);
+    if(me!==rreq)return;
+    if(!j){gIframe();setTrip(null);$("routeSum").textContent="We couldn't find your starting address on the map. Check the address in step 1.";return}
     if(rmap){rmap.remove();rmap=null}el.innerHTML="";
     rmap=L.map(el,{scrollWheelZoom:true,zoomControl:true});L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(rmap);
     j.avoided.forEach(a=>L.circle([a.lat,a.lon],{radius:a.r,color:"#c0392b",weight:1.5,fillOpacity:.15}).addTo(rmap).bindTooltip("Avoiding "+a.name));
@@ -585,11 +590,21 @@ async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;c
     rmap.fitBounds(L.latLngBounds(all),{padding:[28,28]});
     const av=j.avoided.length?` · avoids ${j.avoided.map(a=>a.name).join(", ")}`:"";
     const sk=j.skipped.length?`. ${j.skipped.join(", ")} can't be avoided because your start or polling place is inside it.`:"";
-    $("routeSum").textContent=j.transit?`Leave ${j.depart} · arrive ${j.arrive} · ${j.minutes} min on Nov 3 schedules${j.avoidIgnored?". Transit routes can't avoid neighborhoods yet.":""}${(j.notes||[]).length?" "+j.notes.join(" "):""}`:`${j.miles} mi · about ${j.minutes} min total${av}${sk}`;setTrip(j.minutes);
+    $("routeSum").textContent=j.transit?`Leave ${j.depart} · arrive ${j.arrive} · ${j.minutes} min on Nov 3 schedules${j.avoidIgnored?". Transit routes can't avoid neighborhoods yet.":""}${(j.notes||[]).length?" "+j.notes.join(" "):""}`:`${j.miles} mi · about ${j.minutes} min total${av}${sk}${(j.notes||[]).length?" · "+j.notes.join(" "):""}`;setTrip(j.minutes);
     const ad=(j.added||[]);$("routeAdded").hidden=!ad.length;$("routeAdded").innerHTML=ad.length?`<b>Heads up:</b> you didn't pick ${ad.map(n=>`${iconFor(n,"")} ${esc(n.toLowerCase())}`).join(" or ")}, but we added ${ad.length>1?"them":"it"} to connect your trip. Those stretches are marked <span class="addtag">Added</span> below.`:"";
     $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b>${lg.added?' <span class="addtag">Added</span>':""} · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?(lg.mode==="transit"?" · time is an estimate, check the schedule":" · time is an estimate"):""}</small></span></li>`).join("");$("routeLegs").hidden=false;
     $("routeSteps").innerHTML=j.legs.map((lg,i)=>`<li class="lh" style="color:${COLORS[i%COLORS.length]}">${iconFor(lg.name,"")} ${esc(lg.name)}</li>`+lg.steps.map(s=>`<li>${esc(s)}</li>`).join("")).join("");$("routeDetails").hidden=false;
-  }catch(e){if(me!==rreq)return;gIframe();setTrip(null);$("routeSum").textContent="Route unavailable right now. Showing Google's route instead."}}
+  }catch(e){if(me!==rreq)return;console.error(e);$("routeSum").textContent="Something went wrong drawing your route. Try again in a moment."}}
+const _startCache={};
+async function startPoint(o){if(_startCache[o])return _startCache[o];
+  try{const r=await fetch("https://photon.komoot.io/api/?q="+encodeURIComponent(o)+"&limit=1&lang=en&bbox="+BBOX);const f=((await r.json()).features||[])[0];if(f)return _startCache[o]=[f.geometry.coordinates[1],f.geometry.coordinates[0]]}catch(e){}
+  return null}
+async function sketchRoute(o){
+  // Last resort when the routing server can't answer: a direct path split across every pick, marked approximate.
+  const st=await startPoint(o);if(!st)return null;const en=[S.placeLat,S.placeLon],n=S.picks.length,SP={walking:3,bicycling:10,driving:25,transit:15};
+  const at=t=>[st[0]+(en[0]-st[0])*t,st[1]+(en[1]-st[1])*t];const km=(a,b)=>Math.hypot((a[0]-b[0])*111,(a[1]-b[1])*88);
+  const legs=S.picks.map((p,i)=>{const a=at(i/n),b=at((i+1)/n),mi=+(km(a,b)/1.609*1.25).toFixed(2);return{name:p.v,mode:p.m,label:"approximate path",shape:[a,b],miles:mi,minutes:Math.max(1,Math.round(mi/(SP[p.m]||5)*60)),steps:[`Head toward your next stop by ${p.v.toLowerCase()}.`],estimate:true,approx:true}});
+  return{ok:true,start:st,end:en,legs,avoided:[],skipped:[],added:[],notes:["The routing server didn't respond, so this is an approximate path."],miles:+legs.reduce((s,l)=>s+l.miles,0).toFixed(1),minutes:legs.reduce((s,l)=>s+l.minutes,0)}}
 function gmaps(o,d,m){return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(d)+"&travelmode="+m}
 function gembed(o,d,m){return "https://www.google.com/maps?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+({walking:"w",transit:"r",driving:"d",bicycling:"b"}[m])+"&output=embed"}
 function amaps(o,d,m){return "https://maps.apple.com/?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+APPLE[m]}
