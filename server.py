@@ -398,6 +398,207 @@ def transit_route(start, end, picks, when):
     legs = [x for x in legs if not (x["mode"] == "walk" and x["minutes"] <= 1 and x["miles"] < 0.03)]
     return {"legs": legs, "notes": notes, "minutes": round(it["duration"] / 60), "depart": local_time(it["startTime"]), "arrive": local_time(it["endTime"])}
 
+
+# ---------- Special vehicles: water, air and space ----------
+# Boats stay on water: paths run over a 150 m land/water grid of the Bay built from
+# OpenStreetMap-derived land outlines (bay-water.json). Planes use real airports,
+# rockets launch from real Bay Area airfields and climb past the Karman line (100 km).
+import heapq, zlib, base64
+_VCAT = None
+def vehicle_category(name):
+    global _VCAT
+    if _VCAT is None:
+        s = open(os.path.join(ROOT, "vehicles.js"), encoding="utf-8").read()
+        arr = json.loads(s[s.index("["):s.index("]]") + 2])
+        _VCAT = {n.lower(): c for n, c, m in arr}
+    return _VCAT.get((name or "").lower())
+
+LIFTS = r"cable car|gondola lift|aerial tramway|chairlift|ski lift|ropeway|zipline"
+PLANES = r"airplane|airliner|jet|charter plane|turboprop|military aircraft|seaplane|amphibious aircraft|ultralight|microlight|agricultural|electric aircraft|glider|sailplane|air ambulance"
+
+def special_kind(pk):
+    v = pk["v"].lower(); cat = vehicle_category(pk["v"])
+    if cat == "Space": return "space"
+    if cat == "Air" and not re.search(LIFTS, v):
+        return "plane" if re.search(PLANES, v) and not re.search(r"hang glider|paraglider", v) else "fly"
+    if cat == "Water" and pk["m"] != "transit": return "water"
+    return None
+
+def speed_mph(kind, v):
+    v = v.lower()
+    if kind == "water":
+        for rx, sp in [(r"hovercraft|hydrofoil", 35), (r"speedboat|motorboat|power catamaran|cabin cruiser|inflatable|fishing", 25),
+                       (r"tug", 12), (r"windsurf|kitesurf", 12), (r"sub|submersible|underwater research", 8),
+                       (r"surfboard|diver propulsion", 2), (r"yacht|sail|catamaran", 7),
+                       (r"cruise|liner|cargo|container|bulk|tanker|lng|hospital|icebreaker|houseboat|riverboat|paddle steamer|passenger boat", 14)]:
+            if re.search(rx, v): return sp
+        return 3
+    if kind == "plane": return 220 if re.search(r"airliner|passenger airplane|jet|charter|cargo airplane|military", v) else 120
+    for rx, sp in [(r"balloon", 8), (r"airship|blimp|zeppelin", 35), (r"hang glider|paraglider", 20), (r"wingsuit", 100),
+                   (r"autogyro|gyrocopter", 80), (r"helicopter", 120)]:
+        if re.search(rx, v): return sp
+    return 100
+
+AIRPORTS = {"San Francisco International Airport (SFO)": (37.6213, -122.3790), "Oakland International Airport (OAK)": (37.7126, -122.2197),
+    "San Jose Mineta International Airport (SJC)": (37.3626, -121.9290), "Palo Alto Airport": (37.4611, -122.1150),
+    "San Carlos Airport": (37.5119, -122.2495), "Hayward Executive Airport": (37.6592, -122.1217), "Livermore Municipal Airport": (37.6934, -121.8204),
+    "Buchanan Field, Concord": (37.9897, -122.0569), "Napa County Airport": (38.2132, -122.2807), "Charles M. Schulz Sonoma County Airport": (38.5090, -122.8128),
+    "Petaluma Municipal Airport": (38.2578, -122.6056), "Gnoss Field, Novato": (38.1436, -122.5561), "Half Moon Bay Airport": (37.5134, -122.5012),
+    "Reid-Hillview Airport, San Jose": (37.3329, -121.8197), "Nut Tree Airport, Vacaville": (38.3768, -121.9618)}
+SPACEPORTS = {"Moffett Federal Airfield (NASA Ames)": (37.4161, -122.0490), "Alameda Point (former Naval Air Station runway)": (37.7860, -122.3170),
+              "Travis Air Force Base": (38.2627, -121.9275)}
+
+_WG = None
+def water_grid():
+    global _WG
+    if _WG is None:
+        d = json.load(open(os.path.join(ROOT, "bay-water.json")))
+        d["cells"] = zlib.decompress(base64.b64decode(d["grid"])); _WG = d
+    return _WG
+
+def _rc(g, la, lo): return int((g["bbox"][3] - la) / g["dlat"]), int((lo - g["bbox"][0]) / g["dlon"])
+def _ll(g, r, c): return (round(g["bbox"][3] - (r + .5) * g["dlat"], 6), round(g["bbox"][0] + (c + .5) * g["dlon"], 6))
+
+def _nearest_water(g, la, lo, rad=12):
+    r0, c0 = _rc(g, la, lo); W, H, cells = g["w"], g["h"], g["cells"]; best = None
+    for want in (2, 1):
+        for r in range(max(0, r0 - rad), min(H, r0 + rad + 1)):
+            for c in range(max(0, c0 - rad), min(W, c0 + rad + 1)):
+                if cells[r * W + c] >= want:
+                    d = (r - r0) ** 2 + (c - c0) ** 2
+                    if best is None or d < best[0]: best = (d, r, c)
+        if best: return best[1], best[2]
+    return None
+
+def _clear(g, a, b):
+    (r0, c0), (r1, c1) = a, b; n = max(abs(r1 - r0), abs(c1 - c0), 1); W, cells = g["w"], g["cells"]
+    for i in range(n + 1):
+        r = round(r0 + (r1 - r0) * i / n); c = round(c0 + (c1 - c0) * i / n)
+        if cells[r * W + c] == 0: return False
+    return True
+
+def water_path(a, b):
+    """Shortest on-water path between two shore points, as [lat, lon] points."""
+    g = water_grid(); W, H, cells = g["w"], g["h"], g["cells"]
+    s = _nearest_water(g, *a); t = _nearest_water(g, *b)
+    if not s or not t: return None
+    si, ti = s[0] * W + s[1], t[0] * W + t[1]
+    dist = {si: 0.0}; prev = {}; pq = [(0.0, si)]; tr, tc = t
+    steps = [(-1, 0, 1), (1, 0, 1), (0, -1, 1), (0, 1, 1), (-1, -1, 1.414), (-1, 1, 1.414), (1, -1, 1.414), (1, 1, 1.414)]
+    while pq:
+        f, i = heapq.heappop(pq)
+        if i == ti: break
+        r, c = divmod(i, W); gi = dist[i]
+        for dr, dc, w in steps:
+            rr, cc = r + dr, c + dc
+            if not (0 <= rr < H and 0 <= cc < W): continue
+            j = rr * W + cc; v = cells[j]
+            if v == 0: continue
+            nd = gi + w * (1 if v == 2 else 3)
+            if nd < dist.get(j, 1e18):
+                dist[j] = nd; prev[j] = i
+                heapq.heappush(pq, (nd + math.hypot(rr - tr, cc - tc), j))
+    if ti not in dist: return None
+    path = [ti]
+    while path[-1] != si: path.append(prev[path[-1]])
+    path = [divmod(i, W) for i in reversed(path)]
+    out = [path[0]]; k = 0
+    while k < len(path) - 1:
+        j = len(path) - 1
+        while j > k + 1 and not _clear(g, path[k], path[j]): j -= 1
+        out.append(path[j]); k = j
+    return [list(a)] + [list(_ll(g, r, c)) for r, c in out] + [list(b)]
+
+def _km(p, q): return _meters(p[0], p[1], q[0], q[1]) / 1000
+
+def _nearest_site(sites, pt, exclude=None):
+    c = [(n, ll) for n, ll in sites.items() if n != exclude]
+    return min(c, key=lambda x: _km(pt, x[1]))
+
+def _arc(a, b, bend=0.08, n=32):
+    dla, dlo = b[0] - a[0], b[1] - a[1]
+    return [[a[0] + dla * t + dlo * bend * math.sin(math.pi * t), a[1] + dlo * t - dla * bend * math.sin(math.pi * t)] for t in [i / n for i in range(n + 1)]]
+
+def _space_shape(a, b, n=48):
+    out = []
+    for i in range(n + 1):
+        t = i / n; h = math.sin(math.pi * t)
+        out.append([a[0] + (b[0] - a[0]) * t + 0.09 * math.sin(2 * math.pi * t), a[1] + (b[1] - a[1]) * t - 0.32 * h])
+    return out
+
+def special_leg(pk, kind, here, target):
+    """Returns (depart_site_name, depart_pt, leg, arrive_site_name, arrive_pt)."""
+    v = pk["v"]
+    if kind == "water":
+        L = {n: tuple(ll) for n, ll in water_grid()["launches"].items()}
+        dn, dp = _nearest_site(L, here); an, ap = _nearest_site(L, target, exclude=dn)
+        shape = water_path(dp, ap)
+        if not shape: return None
+        mi = shape_len(shape) / 1609; sp = speed_mph(kind, v)
+        under = re.search(r"sub|submersible|underwater", v.lower())
+        steps = [f"Launch your {v.lower()} at {dn}.",
+                 f"{'Dive and cruise underwater' if under else 'Head out onto the water'} across the bay, about {mi:.1f} mi on open water.",
+                 f"Land at {an}."]
+        leg = {"name": v, "mode": "water", "label": f"on the water · {dn} to {an}", "shape": shape, "miles": round(mi, 2),
+               "minutes": max(2, round(mi / sp * 60)), "steps": steps, "estimate": True}
+        return dn, dp, leg, an, ap
+    if kind == "plane":
+        dn, dp = _nearest_site(AIRPORTS, here); an, ap = _nearest_site(AIRPORTS, target, exclude=dn)
+        mi = _km(dp, ap) / 1.609; sp = speed_mph(kind, v); big = sp > 150
+        steps = [f"Board your {v.lower()} at {dn}" + (" (allow about 45 minutes to check in and board)." if big else "."),
+                 f"Take off and fly about {mi:.0f} mi.", f"Land at {an}."]
+        leg = {"name": v, "mode": "air", "label": f"in the air · {dn} to {an}", "shape": _arc(dp, ap), "miles": round(mi, 1),
+               "minutes": round(mi / sp * 60) + (60 if big else 25), "steps": steps, "dashed": True, "estimate": True}
+        return dn, dp, leg, an, ap
+    if kind == "fly":
+        mi = _km(here, target) / 1.609; sp = speed_mph(kind, v)
+        steps = [f"Take off in your {v.lower()} from your start.", f"Fly about {mi:.1f} mi straight toward your polling place.",
+                 "Touch down near the polling place."]
+        leg = {"name": v, "mode": "air", "label": "in the air", "shape": _arc(here, target, 0.12), "miles": round(mi, 1),
+               "minutes": max(2, round(mi / sp * 60) + 10), "steps": steps, "dashed": True, "estimate": True}
+        return "your start", here, leg, "your polling place", target
+    if kind == "space":
+        dn, dp = _nearest_site(SPACEPORTS, here); an, ap = _nearest_site(SPACEPORTS, target)
+        ground = _km(dp, ap) / 1.609
+        steps = [f"Lift off in your {v.lower()} from {dn}.",
+                 "Climb straight up past the Karman line, 100 km (62 mi) above Earth. You're in space.",
+                 "Coast for about 4 minutes of weightlessness and look down at the Bay.",
+                 "Re-enter the atmosphere over the Pacific" + (f" and land back at {an}." if an == dn else f" and land at {an}.")]
+        leg = {"name": v, "mode": "space", "label": f"to space (100 km up) and back · {dn} to {an}", "shape": _space_shape(dp, ap),
+               "miles": round(124 + ground), "minutes": 15, "steps": steps, "dashed": True, "estimate": True}
+        return dn, dp, leg, an, ap
+    return None
+
+def special_route(start, end, picks, polys, leg, chain, when):
+    specials = [(pk, special_kind(pk)) for pk in picks]; specials = [(pk, k) for pk, k in specials if k]
+    ground = sorted([pk for pk in picks if pk["m"] != "transit" and not special_kind(pk)], key=lambda pk: -RANK[pk["m"]])
+    transit = [pk for pk in picks if pk["m"] == "transit"]
+    legs, notes, here = [], [], start
+    def connect(a, b, to_name, use):
+        if _km(a, b) < 0.05: return []
+        if use:
+            r = chain(use, a, b)
+            if r: return r
+        pk = {"v": "Walk", "m": "walking"} if _km(a, b) < 1.6 else {"v": "Drive", "m": "driving"}
+        r = leg(pk, a, b)
+        if r: r["label"] = f"to {to_name}"; return [r]
+        return [{"name": pk["v"], "mode": pk["m"], "label": f"to {to_name}", "shape": [list(a), list(b)], "miles": round(_km(a, b) / 1.609, 2),
+                 "minutes": max(1, round(_km(a, b) / (5 if pk["m"] == "walking" else 40) * 60)), "steps": [f"Head to {to_name}."], "estimate": True}]
+    head, tail = (ground[:-1], ground[-1:]) if len(ground) > 1 else (ground, [])
+    for i, (pk, kind) in enumerate(specials):
+        sl = special_leg(pk, kind, here, end)
+        if not sl: notes.append(f"We couldn't find a way to use the {pk['v'].lower()} on this trip."); continue
+        dn, dp, lg, an, ap = sl
+        legs += connect(here, dp, dn, head if i == 0 else [])
+        legs.append(lg); here = ap
+    if transit:
+        tr = transit_route(here, end, transit, when)
+        if tr: legs += tr["legs"]; notes += tr["notes"]
+        else: legs += connect(here, end, "your polling place", tail); notes.append("No transit fits the last stretch, so it's shown another way.")
+    else:
+        legs += connect(here, end, "your polling place", tail)
+    return legs, notes
+
 def route(body):
     start = geocode(body.get("from", ""))
     if not start: return {"ok": False, "error": "start_not_found"}
@@ -436,6 +637,11 @@ def route(body):
             out.append(r)
         return out
     notes = []
+    if any(special_kind(pk) for pk in picks):
+        legs, notes = special_route(start, end, picks, polys, leg, chain, body.get("time", "midday"))
+        if not legs: return {"ok": False, "error": "no_route"}
+        return {"ok": True, "start": start, "end": end, "legs": legs, "avoided": avoided, "skipped": skipped, "notes": notes,
+                "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
     if transit_picks:
         tr = transit_route(start, end, picks, body.get("time", "midday"))
         if not tr: return {"ok": True, "fallback": "transit", "start": start, "end": end}
