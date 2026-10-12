@@ -226,6 +226,8 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .promo{display:flex;align-items:center;justify-content:center;text-align:center;gap:12px;margin:28px 0 0;padding:18px 22px;border-radius:22px;background:var(--green-soft);color:#000;font-size:17px;line-height:1.4}
 .promo b{font-family:var(--head);font-weight:700;letter-spacing:-.01em}
 .promo-ic{font-size:26px;line-height:1}
+.radded{margin:8px 0 0;padding:10px 14px;border-radius:14px;background:#fff6d6;color:#3a3200;font-size:14.5px;line-height:1.45}
+.addtag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--yellow);color:var(--yellow-ink);vertical-align:2px}
 footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
 
 .sugg{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;margin:0;padding:6px;list-style:none;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(20,8,40,.25);max-height:300px;overflow-y:auto}
@@ -584,7 +586,8 @@ async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;c
     const av=j.avoided.length?` · avoids ${j.avoided.map(a=>a.name).join(", ")}`:"";
     const sk=j.skipped.length?`. ${j.skipped.join(", ")} can't be avoided because your start or polling place is inside it.`:"";
     $("routeSum").textContent=j.transit?`Leave ${j.depart} · arrive ${j.arrive} · ${j.minutes} min on Nov 3 schedules${j.avoidIgnored?". Transit routes can't avoid neighborhoods yet.":""}${(j.notes||[]).length?" "+j.notes.join(" "):""}`:`${j.miles} mi · about ${j.minutes} min total${av}${sk}`;setTrip(j.minutes);
-    $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b> · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?(lg.mode==="transit"?" · time is an estimate, check the schedule":" · time is an estimate"):""}</small></span></li>`).join("");$("routeLegs").hidden=false;
+    const ad=(j.added||[]);$("routeAdded").hidden=!ad.length;$("routeAdded").innerHTML=ad.length?`<b>Heads up:</b> you didn't pick ${ad.map(n=>`${iconFor(n,"")} ${esc(n.toLowerCase())}`).join(" or ")}, but we added ${ad.length>1?"them":"it"} to connect your trip. Those stretches are marked <span class="addtag">Added</span> below.`:"";
+    $("routeLegs").innerHTML=j.legs.map((lg,i)=>`<li><span class="sw" style="background:${COLORS[i%COLORS.length]}${lg.dashed?";background-image:repeating-linear-gradient(90deg,transparent 0 4px,#fff 4px 8px)":""}"></span><span class="li">${iconFor(lg.name,"")}</span><span><b>${esc(lg.name)}</b>${lg.added?' <span class="addtag">Added</span>':""} · ${lg.miles} mi · ${lg.estimate?"about ":""}${lg.minutes} min<small>${esc(lg.label||"")}${lg.estimate?(lg.mode==="transit"?" · time is an estimate, check the schedule":" · time is an estimate"):""}</small></span></li>`).join("");$("routeLegs").hidden=false;
     $("routeSteps").innerHTML=j.legs.map((lg,i)=>`<li class="lh" style="color:${COLORS[i%COLORS.length]}">${iconFor(lg.name,"")} ${esc(lg.name)}</li>`+lg.steps.map(s=>`<li>${esc(s)}</li>`).join("")).join("");$("routeDetails").hidden=false;
   }catch(e){if(me!==rreq)return;gIframe();setTrip(null);$("routeSum").textContent="Route unavailable right now. Showing Google's route instead."}}
 function gmaps(o,d,m){return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(d)+"&travelmode="+m}
@@ -605,6 +608,7 @@ function buildPlan(){
       </div>
       <div class="map" id="routeMap"></div>
       <p class="rsum" id="routeSum">Finding the best route…</p>
+      <p class="radded" id="routeAdded" hidden></p>
       <ul class="rlegs" id="routeLegs" hidden></ul>
       <details class="rdetails" id="routeDetails" hidden><summary>Turn-by-turn directions</summary><ol class="rsteps" id="routeSteps"></ol></details>
       <div class="facts">
