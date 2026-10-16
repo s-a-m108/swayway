@@ -756,7 +756,7 @@ function meetDefault(){return {morning:"9:00 AM",midday:"12:30 PM",evening:"5:30
 function renderSwarm(){const box=$("swarmBox");if(!box)return;const d=SW.data;
   if(!d){const dd=dest();
     box.innerHTML=`<p><b>Get your people to the polls together.</b> Pick a time to meet at ${dd?esc(dd.name):"your polling place"}, share the link, and everyone gets their own route there, however they're traveling.</p>
-    <div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Katie" value="${esc(swarmStore("sw_name")||"")}"></label>
+    <div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Name" value="${esc(swarmStore("sw_name")||"")}"></label>
     <label>Meet at<select id="swTime">${MEET_TIMES.map(t=>`<option${t===meetDefault()?" selected":""}>${t}</option>`).join("")}</select></label>
     <label>Meeting spot<input id="swSpot" maxlength="80" placeholder="Out front"></label></div>
     <div class="acts"><button class="btn purple" type="button" id="swStart"${dd?"":" disabled"}>Start my Swarm</button></div>${dd?"":'<p class="swsub">Pick your polling place first.</p>'}`;
@@ -765,7 +765,7 @@ function renderSwarm(){const box=$("swarmBox");if(!box)return;const d=SW.data;
   box.innerHTML=`<p class="swhead">${esc(d.host)}'s Swarm</p>
     <div class="swmeta"><span>📅 Tue, Nov 3 · ${esc(d.time)}</span><span>📍 ${esc(d.place.name)}</span><span>🤝 ${esc(d.spot)}</span></div>
     ${SW.me?(lb?`<p class="swme">Leave by <b>${lb}</b> to meet your Swarm on time. Your trip takes about ${S.tripMin} min.</p>`:""):
-      `<div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Your name" value="${esc(swarmStore("sw_name")||"")}"></label></div>
+      `<div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Name" value="${esc(swarmStore("sw_name")||"")}"></label></div>
        <div class="acts"><button class="btn purple" type="button" id="swJoin"${S.placeLat==null?" disabled":""}>Join the Swarm</button></div>
        ${S.placeLat==null?'<p class="swsub">Enter your starting address above to get your route, then join.</p>':lb?`<p class="swsub">Your trip takes about ${S.tripMin} min, so you'd leave by ${lb}.</p>`:""}`}
     <p><b>${mem.length} ${mem.length===1?"person":"people"} swarming</b></p>
