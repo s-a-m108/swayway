@@ -234,6 +234,13 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .vss{margin:2px 0 10px;opacity:.8;font-size:14.5px}
 .vsnote{margin:0 0 10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.12);font-size:14.5px;line-height:1.45}.vsnote a,.vsrc a{color:inherit;text-decoration:underline}
 .vsrc{margin:16px 0 0;font-size:13px;opacity:.75}
+.fromf{display:flex;flex-direction:column;gap:6px;margin:0}
+.froml{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.fromrow{display:flex;gap:8px;flex-wrap:wrap}
+.fromin{flex:1 1 220px;min-width:0;font:inherit;padding:9px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+.fromin:focus{outline:none;border-color:var(--purple-text)}
+.fromb{font:600 14px var(--body);padding:9px 14px;border-radius:12px;border:0;background:var(--purple-btn);color:#fff;cursor:pointer}
+.fromr{align-self:flex-start;font:500 13px var(--body);background:none;border:0;padding:0;color:var(--purple-text);text-decoration:underline;cursor:pointer}
 footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
 
 .sugg{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;margin:0;padding:6px;list-style:none;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(20,8,40,.25);max-height:300px;overflow-y:auto}
@@ -418,7 +425,7 @@ $("addrForm").addEventListener("submit",e=>{e.preventDefault();
   const a=$("addr").value.trim();
   if(a.length<6||!inBay(a)){$("err1").hidden=false;$("addr").focus();return}
   $("err1").hidden=true;Promise.race([fillZip(),new Promise(r=>setTimeout(r,2500))]).finally(()=>{renderLookup();loadVC();advance(2)})});
-$("addr").addEventListener("input",()=>{renderLookup();if(S.max>=4)buildPlan()});
+$("addr").addEventListener("input",()=>{S.from="";renderLookup();if(S.max>=4)buildPlan()});
 
 function single(el,key,attr){el.addEventListener("click",e=>{const b=e.target.closest("[data-"+attr+"]");if(!b)return;el.querySelectorAll("[data-"+attr+"]").forEach(x=>x.setAttribute("aria-pressed",x===b));S[key]=b.dataset[attr]})}
 S.vehicle="";S.picks=[{v:"Walk",m:"walking"}];
@@ -516,7 +523,7 @@ function renderVC(){
   $("vcCount").innerHTML=active?`Showing ${shown.length} of ${S.vc.length} locations <button type="button" id="vcClear">Clear filters</button>`:"";
   const row=([x,i],kind)=>`<button type="button" class="row" data-vc="${i}" data-kind="${kind}" aria-pressed="${S.placeName===titleCase(x.name)&&S.placeKind===kind}"><span class="ic w">${kind==="drop"?BALLOT:BUILDING}</span><span class="tx"><span class="t1">${esc(titleCase(x.name))}</span><span class="t2">${esc(titleCase(x.address))}, ${esc(titleCase(x.city))} ${esc(x.zip)}${x.neighborhood?` · ${esc(x.neighborhood)}`:""}</span><span class="tags">${kind==="drop"?dropTags(x):vcTags(x,kind)}</span><span class="tags">${accessTags(x)}</span></span>${x.miles!=null?`<span class="mi">${x.miles} mi</span>`:""}</button>`;
   const lk=S.countyLookup?`<a href="${S.countyLookup}" target="_blank" rel="noopener">${esc(S.county)} County's official lookup</a>`:"your county's official lookup";
-  const SECT=[["eday","Election Day voting sites","Open Tuesday, Nov 3.",S.precinct?`${esc(S.county)} assigns each voter one Election Day polling place by precinct, and the state's list doesn't include it. Find yours on ${lk}.`:`In ${esc(S.county||"your")} County you can vote at any vote center in the county.`],
+  const SECT=[["eday","Election Day voting sites","Open Tuesday, Nov 3.",S.precinct?`${esc(S.county)} assigns each voter one Election Day polling place by precinct, and the state's list doesn't include it. Find yours on ${lk}.${S.county==="San Francisco"?" Any San Francisco voter can also vote at the City Hall Voting Center, 7 AM to 8 PM on Election Day.":""}`:`In ${esc(S.county||"your")} County you can vote at any vote center in the county.`],
               ["early","Early voting sites","Vote in person before Election Day.",""],
               ["drop","Ballot drop-off locations","Return your mail ballot by 8 PM on Nov 3.",""]];
   list.innerHTML=SECT.map(([k,h,sub,note])=>{const rows=shown.filter(([x])=>(x.kinds||["eday"]).includes(k));
@@ -567,7 +574,7 @@ async function loadVC(){
   try{
     const r=await fetch("/api/vote-centers?"+q);const d=await r.json();if(me!==vcReq)return;
     if(!d.ok){list.innerHTML="";note.hidden=false;note.textContent=d.error==="outside_bay"?"That address isn't in one of the nine Bay Area counties.":"We couldn't match that address. Check the street, city and ZIP and try again.";return}
-    S.vc=d.results;S.county=d.county;S.countyLookup=d.countyLookup;S.precinct=!!d.precinct;renderVC();loadAccess(me);
+    S.vc=d.results;S.county=d.county;S.countyLookup=d.countyLookup;S.precinct=d.precinct!=null?!!d.precinct:["San Francisco","Contra Costa","Solano"].includes(d.county);renderVC();loadAccess(me);
   }catch(e){if(me!==vcReq)return;list.innerHTML="";note.hidden=false;note.textContent="Vote centers couldn't load right now. Try again in a moment."}
 }
 $("vcList").addEventListener("click",e=>{const b=e.target.closest("[data-vc]");if(!b)return;const x=S.vc[+b.dataset.vc];S.placeKind=b.dataset.kind;
@@ -578,8 +585,9 @@ let rmap=null,rtimer=null,rreq=0;
 function drawRoute(){clearTimeout(rtimer);rtimer=setTimeout(routeNow,450)}
 function fmtMin(m){return m>=60?`About ${Math.floor(m/60)} hr${m%60?` ${m%60} min`:""}`:`About ${m} min`}
 function setTrip(m){S.tripMin=m;const el=$("tripTime");if(el)el.textContent=m?fmtMin(m):"See Google Maps";renderMsg()}
-function gIframe(){if(rmap){rmap.remove();rmap=null}if($("routeLegs"))$("routeLegs").hidden=true;const d=dest();if(!d||!$("routeMap"))return;$("routeMap").innerHTML=`<iframe title="Directions in Google Maps" src="${gembed($("addr").value.trim(),d.addr,S.mode)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;$("routeDetails").hidden=true}
-async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;const o=$("addr").value.trim();
+function gIframe(){if(rmap){rmap.remove();rmap=null}if($("routeLegs"))$("routeLegs").hidden=true;const d=dest();if(!d||!$("routeMap"))return;$("routeMap").innerHTML=`<iframe title="Directions in Google Maps" src="${gembed(startAddr(),d.addr,S.mode)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;$("routeDetails").hidden=true}
+function startAddr(){return (S.from||"").trim()||$("addr").value.trim()}
+async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;const o=startAddr();
   if(S.placeLat==null||!window.L){gIframe();$("routeSum").textContent="";return}
   $("routeSum").textContent="Finding the best route…";
   try{let j=null;const st0=await startPoint(o);if(me!==rreq)return;
@@ -624,14 +632,14 @@ function gembed(o,d,m){return "https://www.google.com/maps?saddr="+encodeURIComp
 function amaps(o,d,m){return "https://maps.apple.com/?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+APPLE[m]}
 function buildPlan(){
   setTimeout(renderMsg,0);
-  const o=$("addr").value.trim(),d=dest(),st=stateOf(o)||"CA";if(!d)return;
+  const o=startAddr(),d=dest(),st=stateOf(o)||"CA";if(!d)return;
   $("planCard").innerHTML=`
     <h2>Your plan to vote</h2>
     <div class="inner">
       <span class="badge">Tuesday, Nov 3</span>
       <h3>${TIME[S.time]} ${howHTML()} to ${esc(d.name)}</h3>
       <div class="route">
-        <span class="d"></span><span class="a">${esc(o)}</span>
+        <span class="d"></span><span class="a"><form class="fromf" id="fromForm" autocomplete="off"><label class="froml" for="fromIn">Starting from</label><span class="fromrow"><input id="fromIn" class="fromin" type="text" value="${esc(o)}" aria-label="Starting location"><button class="fromb" type="submit">Update route</button></span>${S.from?'<button class="fromr" type="button" id="fromReset">Go back to the address from step 1</button>':""}</form></span>
         <span class="r"></span><span class="m">${esc(S.picks.map(p=>p.v).join(" + "))} · directions shown for ${MODE_CAP[S.mode].toLowerCase()}</span>
         <span class="d e"></span><span class="a"><b>${esc(S.placeName||"Polling place")}</b><br>${esc(d.addr)}</span>
       </div>
@@ -652,6 +660,8 @@ function buildPlan(){
       </div>
     </div>`;
   drawRoute();
+  $("fromForm").onsubmit=e=>{e.preventDefault();const v=$("fromIn").value.trim();if(v.length<4){$("fromIn").focus();return}S.from=v===$("addr").value.trim()?"":v;buildPlan()};
+  if($("fromReset"))$("fromReset").onclick=()=>{S.from="";buildPlan()};
   $("copyPlan").onclick=()=>copy(`My plan for Nov 3: ${TIME[S.time].toLowerCase()} ${how()} to ${d.name} (${d.addr}). Directions: ${gmaps(o,d.addr,S.mode)}`,"Plan copied");
   const items=[
     `Double-check your polling place on the <a href="${lookupFor(st)}" target="_blank" rel="noopener">official lookup</a> the week of the election. Locations can change.`,
