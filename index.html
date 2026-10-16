@@ -1,13 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
 <title>SwayWay</title>
-<script>
-    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="du fu pu gu bu init Vu Gu zu Uu Ku el Wu Xu qu rc oc ac lc uc cc capture getExtension Qu cu fc calculateEventProperties dc register register_once register_for_session unregister unregister_for_session bc Bu gc getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys onActiveMatchingSurveysChanged renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset wc shutdown setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty mc ec createPersonProfile setInternalOrTestUser yc Su wu opt_in_capturing opt_out_capturing ku has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing Yu debug il Os getPageViewId captureTraceFeedback captureTraceMetric Ou".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-    posthog.init('phc_zjCVpPHYrHvieH5AmgRkME8kcUhoJsQXWFEuvLokjjLT', {
-        api_host: 'https://us.i.posthog.com',
-        defaults: '2026-05-30',
-        person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
-    })
-</script>
 <meta name="description" content="Find your polling place, pick how you'll get there, and rally your people. Get to the polls your way.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://swayway.onrender.com/">
@@ -249,6 +241,21 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .fromin:focus{outline:none;border-color:var(--purple-text)}
 .fromb{font:600 14px var(--body);padding:9px 14px;border-radius:12px;border:0;background:var(--purple-btn);color:#fff;cursor:pointer}
 .fromr{align-self:flex-start;font:500 13px var(--body);background:none;border:0;padding:0;color:var(--purple-text);text-decoration:underline;cursor:pointer}
+.swban{display:flex;gap:14px;align-items:flex-start;background:var(--yellow);color:var(--yellow-ink);border-radius:22px;padding:16px 20px;margin:4px 0 6px;font-size:16px;line-height:1.45}
+.swban .bee{font-size:28px;line-height:1}.swban b{font-family:var(--head)}
+.swbox{background:var(--lav-3);border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.swbox p{margin:0}.swbox .swsub{color:var(--muted)}
+.swform{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+.swform label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.swform input,.swform select{font:16px var(--body);text-transform:none;letter-spacing:0;color:var(--ink);padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff}
+.swhead{font-family:var(--head);font-weight:700;font-size:22px;letter-spacing:-.02em;margin:0}
+.swmeta{display:flex;flex-wrap:wrap;gap:8px}
+.swmeta span{background:#fff;border-radius:999px;padding:5px 12px;font-size:14px;font-weight:500}
+.swme{background:var(--green-soft);color:#24401c;border-radius:16px;padding:12px 16px;font-weight:500}
+.swlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.swlist li{background:#fff;border-radius:14px;padding:10px 14px;display:flex;gap:12px;align-items:center}
+.swlist .ics{font-size:20px;min-width:30px}.swlist .nm{font-weight:600}.swlist small{display:block;color:var(--muted);font-size:13px}
+.swlist .host{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--yellow);color:var(--yellow-ink);border-radius:999px;padding:2px 7px;margin-left:6px}
 footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
 
 .sugg{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;margin:0;padding:6px;list-style:none;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:16px;box-shadow:0 14px 34px rgba(20,8,40,.25);max-height:300px;overflow-y:auto}
@@ -283,6 +290,8 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
       <h1>Get to the polls your way</h1>
       <p class="sub">Pick your polling place, choose how you'll get there, and get directions. Now available in the San Francisco Bay Area.</p>
     </div>
+
+    <div class="swban" id="swarmBanner" hidden></div>
 
     <nav class="tracker" aria-label="Steps">
       <button class="tk" data-go="1" type="button"><span class="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>Address</button>
@@ -363,6 +372,10 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
           </div>
         </div>
       </div>
+      <div class="sect" id="swarmSect">
+        <h2>Swarm to the polls <span aria-hidden="true">🐝</span></h2>
+        <div class="swbox" id="swarmBox"></div>
+      </div>
     </div>
 
     <p class="promo"><span class="promo-ic" aria-hidden="true">🎉</span><span><b>Get 25 voters in your group, and we'll pay up to $500 for your transportation to the polls.</b></span></p>
@@ -432,7 +445,7 @@ $("addrForm").addEventListener("submit",e=>{e.preventDefault();
   closeSugg();
   const a=$("addr").value.trim();
   if(a.length<6||!inBay(a)){$("err1").hidden=false;$("addr").focus();return}
-  $("err1").hidden=true;Promise.race([fillZip(),new Promise(r=>setTimeout(r,2500))]).finally(()=>{renderLookup();loadVC();advance(2)})});
+  $("err1").hidden=true;Promise.race([fillZip(),new Promise(r=>setTimeout(r,2500))]).finally(()=>{renderLookup();loadVC();if(SW.data&&!SW.placeSet)swarmUsePlace();else advance(2)})});
 $("addr").addEventListener("input",()=>{S.from="";renderLookup();if(S.max>=4)buildPlan()});
 
 function single(el,key,attr){el.addEventListener("click",e=>{const b=e.target.closest("[data-"+attr+"]");if(!b)return;el.querySelectorAll("[data-"+attr+"]").forEach(x=>x.setAttribute("aria-pressed",x===b));S[key]=b.dataset[attr]})}
@@ -607,7 +620,7 @@ $("vcList").addEventListener("click",e=>{const b=e.target.closest("[data-vc]");i
 let rmap=null,rtimer=null,rreq=0;
 function drawRoute(){clearTimeout(rtimer);rtimer=setTimeout(routeNow,450)}
 function fmtMin(m){return m>=60?`About ${Math.floor(m/60)} hr${m%60?` ${m%60} min`:""}`:`About ${m} min`}
-function setTrip(m){S.tripMin=m;const el=$("tripTime");if(el)el.textContent=m?fmtMin(m):"See Google Maps";renderMsg()}
+function setTrip(m){S.tripMin=m;if(SW.me)swarmSync();if(SW.data)renderSwarm();const el=$("tripTime");if(el)el.textContent=m?fmtMin(m):"See Google Maps";renderMsg()}
 function gIframe(){if(rmap){rmap.remove();rmap=null}if($("routeLegs"))$("routeLegs").hidden=true;const d=dest();if(!d||!$("routeMap"))return;$("routeMap").innerHTML=`<iframe title="Directions in Google Maps" src="${gembed(startAddr(),d.addr,S.mode)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;$("routeDetails").hidden=true}
 function startAddr(){return (S.from||"").trim()||$("addr").value.trim()}
 async function routeNow(){const el=$("routeMap");if(!el)return;const me=++rreq;const o=startAddr();
@@ -654,7 +667,7 @@ function gmaps(o,d,m){return "https://www.google.com/maps/dir/?api=1&origin="+en
 function gembed(o,d,m){return "https://www.google.com/maps?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+({walking:"w",transit:"r",driving:"d",bicycling:"b"}[m])+"&output=embed"}
 function amaps(o,d,m){return "https://maps.apple.com/?saddr="+encodeURIComponent(o)+"&daddr="+encodeURIComponent(d)+"&dirflg="+APPLE[m]}
 function buildPlan(){
-  setTimeout(renderMsg,0);
+  setTimeout(()=>{renderMsg();renderSwarm()},0);
   const o=startAddr(),d=dest(),st=stateOf(o)||"CA";if(!d)return;
   $("planCard").innerHTML=`
     <h2>Your plan to vote</h2>
@@ -720,12 +733,71 @@ function planMsg(){
   if(S.picks.length>1)lines.push(`How: ${S.picks.map(p=>`${p.v} ${iconFor(p.v,"")}`).join(" + ")}`);
   if(S.tripMin)lines.push(`Trip time: ${fmtMin(S.tripMin).toLowerCase()}`);
   if(S.placeHours)lines.push(`Election Day hours: ${S.placeHours.replace(/(\d)(AM|PM)/g,"$1 $2")}`);
+  if(SW.id)lines.push(`Join my Swarm 🐝 ${swarmLink()}`);
   lines.push(`Directions: https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(d.addr)}&travelmode=${S.mode}`);
   return lines.join("\n");
 }
 function renderMsg(){$("bubble").textContent=planMsg()}
 $("shuffle").onclick=()=>{S.msg=(S.msg+1)%OPENERS.length;renderMsg()};
 $("copyMsg").onclick=()=>copy(planMsg(),"Message copied, now send it");
+
+// ---------- Swarm: meet up with friends and go vote together ----------
+var SW={id:null,data:null,me:null,placeSet:false,timer:null,sync:null};
+const MEET_TIMES=(()=>{const o=[];for(let m=7*60;m<=19*60+30;m+=30)o.push(fmtClock(m));return o})();
+function fmtClock(m){m=((m%1440)+1440)%1440;const h=Math.floor(m/60),mm=m%60;return `${h%12||12}:${String(mm).padStart(2,"0")} ${h>=12?"PM":"AM"}`}
+function swarmPack(){const d=SW.data;if(!d)return "";const j=JSON.stringify({h:d.host,p:d.place,t:d.time,s:d.spot});return btoa(unescape(encodeURIComponent(j))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function swarmUnpack(x){try{const j=JSON.parse(decodeURIComponent(escape(atob(x.replace(/-/g,"+").replace(/_/g,"/")))));return {host:j.h,place:j.p,time:j.t,spot:j.s}}catch(e){return null}}
+function swarmLink(){return location.origin+location.pathname+"?swarm="+encodeURIComponent(SW.id)+"&d="+swarmPack()}
+function swarmStore(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function myLeaveBy(){if(!SW.data||!S.tripMin)return "";const t=toMin(SW.data.time);return t==null?"":fmtClock(t-S.tripMin-5)}
+function myArea(){const p=$("addr").value.split(",").map(x=>x.trim());return (p[1]||"").replace(/\b[A-Z]{2}\b.*$/,"").trim()}
+function swarmInvite(){const d=SW.data;return `🐝 Join my Swarm! Let's go vote together on Tuesday, Nov 3. Meet at ${d.place.name} (${d.spot}) at ${d.time}. Get your own route there: ${swarmLink()}`}
+function meetDefault(){return {morning:"9:00 AM",midday:"12:30 PM",evening:"5:30 PM"}[S.time]||"12:30 PM"}
+function renderSwarm(){const box=$("swarmBox");if(!box)return;const d=SW.data;
+  if(!d){const dd=dest();
+    box.innerHTML=`<p><b>Get your people to the polls together.</b> Pick a time to meet at ${dd?esc(dd.name):"your polling place"}, share the link, and everyone gets their own route there, however they're traveling.</p>
+    <div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Katie" value="${esc(swarmStore("sw_name")||"")}"></label>
+    <label>Meet at<select id="swTime">${MEET_TIMES.map(t=>`<option${t===meetDefault()?" selected":""}>${t}</option>`).join("")}</select></label>
+    <label>Meeting spot<input id="swSpot" maxlength="80" placeholder="Out front"></label></div>
+    <div class="acts"><button class="btn purple" type="button" id="swStart"${dd?"":" disabled"}>Start my Swarm</button></div>${dd?"":'<p class="swsub">Pick your polling place first.</p>'}`;
+    $("swStart").onclick=swarmCreate;return}
+  const lb=myLeaveBy(),mem=d.members||[];
+  box.innerHTML=`<p class="swhead">${esc(d.host)}'s Swarm</p>
+    <div class="swmeta"><span>📅 Tue, Nov 3 · ${esc(d.time)}</span><span>📍 ${esc(d.place.name)}</span><span>🤝 ${esc(d.spot)}</span></div>
+    ${SW.me?(lb?`<p class="swme">Leave by <b>${lb}</b> to meet your Swarm on time. Your trip takes about ${S.tripMin} min.</p>`:""):
+      `<div class="swform"><label>Your name<input id="swName" maxlength="40" placeholder="Your name" value="${esc(swarmStore("sw_name")||"")}"></label></div>
+       <div class="acts"><button class="btn purple" type="button" id="swJoin"${S.placeLat==null?" disabled":""}>Join the Swarm</button></div>
+       ${S.placeLat==null?'<p class="swsub">Enter your starting address above to get your route, then join.</p>':lb?`<p class="swsub">Your trip takes about ${S.tripMin} min, so you'd leave by ${lb}.</p>`:""}`}
+    <p><b>${mem.length} ${mem.length===1?"person":"people"} swarming</b></p>
+    <ul class="swlist">${mem.map(m=>`<li><span class="ics">${(m.picks||[]).map(p=>iconFor(p,"")).join("")||"🚶"}</span><span><span class="nm">${esc(m.name)}</span>${m.host?'<span class="host">Host</span>':""}<small>${[m.area?"from "+esc(m.area):"",m.leaveBy?"leaves by "+esc(m.leaveBy):"",m.minutes?m.minutes+" min trip":""].filter(Boolean).join(" · ")}</small></span></li>`).join("")||'<li><small>No one yet. Share the link!</small></li>'}</ul>
+    <div class="acts"><button class="btn purple" type="button" id="swCopy">Copy invite</button><button class="btn white" type="button" id="swLink">Copy link</button></div>
+    <p class="swsub">Only first names, cities and how people are getting there are shared with the Swarm, never home addresses.</p>`;
+  $("swCopy").onclick=()=>copy(swarmInvite(),"Invite copied, now send it");$("swLink").onclick=()=>copy(swarmLink(),"Link copied");
+  if($("swJoin"))$("swJoin").onclick=()=>swarmJoin(false)}
+async function swarmPost(path,body){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});return r.json()}
+function swarmPlace(){return {name:S.placeName,addr:S.mine,lat:S.placeLat,lon:S.placeLon,hours:S.placeHours||""}}
+async function swarmCreate(){const name=($("swName").value||"").trim();if(!name){$("swName").focus();return}swarmStore("sw_name",name);
+  try{const j=await swarmPost("/api/swarm/create",{host:name,place:swarmPlace(),time:$("swTime").value,spot:($("swSpot").value||"").trim()});
+    if(!j.ok)throw 0;SW.id=j.swarm.id;SW.data=j.swarm;SW.placeSet=true;history.replaceState(null,"","?swarm="+encodeURIComponent(SW.id)+"&d="+swarmPack());await swarmJoin(true);swarmPoll();renderMsg();toast("Swarm started. Share the invite!")}
+  catch(e){toast("Couldn't start the Swarm. Try again.")}}
+async function swarmJoin(isHost){const n=$("swName")?($("swName").value||"").trim():(swarmStore("sw_name")||"");if(!n){if($("swName"))$("swName").focus();return}swarmStore("sw_name",n);
+  try{const j=await swarmPost("/api/swarm/join",{id:SW.id,name:n,area:myArea(),picks:S.picks.map(p=>p.v),minutes:S.tripMin||null,leaveBy:myLeaveBy(),host:!!isHost||(SW.me&&SW.meHost),memberId:SW.me});
+    if(!j.ok)throw 0;SW.me=j.memberId;SW.meHost=!!isHost||SW.meHost;swarmStore("sw_me_"+SW.id,SW.me+(SW.meHost?"|h":""));SW.data=j.swarm;renderSwarm();renderMsg();if(!isHost)toast("You're in the Swarm 🐝")}
+  catch(e){toast("Couldn't join right now. Try again.")}}
+function swarmSync(){clearTimeout(SW.sync);SW.sync=setTimeout(()=>{if(SW.me)swarmJoin(SW.meHost)},1200)}
+function swarmPoll(){clearInterval(SW.timer);SW.timer=setInterval(async()=>{try{const j=await (await fetch("/api/swarm?id="+encodeURIComponent(SW.id))).json();if(j.ok){SW.data=j.swarm;renderSwarm()}}catch(e){}},20000)}
+function swarmUsePlace(){const p=SW.data.place;S.placeName=p.name;S.placeLat=p.lat;S.placeLon=p.lon;S.mine=p.addr;S.placeHours=p.hours;S.placeKind="eday";SW.placeSet=true;
+  const m=toMin(SW.data.time);const t=m==null?"midday":m<11*60?"morning":m<16*60?"midday":"evening";S.time=t;document.querySelectorAll("#times [data-t]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
+  advance(3)}
+(async function swarmBoot(){const qs=new URLSearchParams(location.search),id=qs.get("swarm");if(!id)return;
+  try{let j=null;try{j=await (await fetch("/api/swarm?id="+encodeURIComponent(id))).json()}catch(e){}
+    if(!(j&&j.ok)){const back=qs.get("d")&&swarmUnpack(qs.get("d"));if(!back)throw 0;   // server was reset: rebuild the Swarm from the link
+      j=await swarmPost("/api/swarm/create",{id,host:back.host,place:back.place,time:back.time,spot:back.spot});if(!j.ok)throw 0}SW.id=id;SW.data=j.swarm;
+    const saved=swarmStore("sw_me_"+id);if(saved){SW.me=saved.split("|")[0];SW.meHost=/\|h$/.test(saved)}
+    const d=SW.data;const b=$("swarmBanner");b.hidden=false;
+    b.innerHTML=`<span class="bee" aria-hidden="true">🐝</span><span><b>${esc(d.host)} started a Swarm.</b> Meet at ${esc(d.place.name)} (${esc(d.spot)}) on Tuesday, Nov 3 at ${esc(d.time)}. Enter where you're starting from, pick how you'll get there, and join.</span>`;
+    renderSwarm();swarmPoll()}
+  catch(e){const b=$("swarmBanner");b.hidden=false;b.innerHTML='<span class="bee" aria-hidden="true">🐝</span><span>That Swarm link has expired. You can still plan your trip and start a new Swarm.</span>'}})();
 
 function copy(t,msg){const ok=()=>toast(msg);try{navigator.clipboard.writeText(t).then(ok,()=>fb(t,ok))}catch(e){fb(t,ok)}}
 function fb(t,ok){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){toast("Select the text and copy it")}a.remove()}
