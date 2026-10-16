@@ -14,17 +14,20 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML,
 SOS = "https://caearlyvoting.sos.ca.gov"
 COUNTY_IDS = {"Alameda": 1, "Contra Costa": 7, "Marin": 21, "Napa": 28, "San Francisco": 38,
               "San Mateo": 41, "Santa Clara": 43, "Solano": 48, "Sonoma": 49}
+# Each county's official lookup, as linked from https://www.sos.ca.gov/elections/polling-place
 LOOKUPS = {
-    "San Francisco": "https://www.sf.gov/departments/department-elections",
-    "Alameda": "https://acvote.alamedacountyca.gov",
-    "Contra Costa": "https://www.contracostavote.gov",
+    "Alameda": "https://acgov.org/rovapps/maps/vca/",
+    "Contra Costa": "https://www.contracostavote.gov/elections/election-day-polling-places/",
     "Marin": "https://www.marincounty.gov/departments/elections",
-    "Napa": "https://www.countyofnapa.org/385/Elections",
-    "San Mateo": "https://www.smcacre.gov/elections",
-    "Santa Clara": "https://vote.santaclaracounty.gov",
-    "Solano": "https://www.solanocounty.gov/depts/rov",
-    "Sonoma": "https://sonomacounty.gov/administrative-support-and-fiscal-services/registrar-of-voters",
+    "Napa": "https://www.napacounty.gov/2354/Vote-Center-Locations",
+    "San Francisco": "https://www.sf.gov/vote-in-person",
+    "San Mateo": "https://smcacre.gov/elections/vote-center-and-ballot-drop-box-lookup",
+    "Santa Clara": "https://rovservices.sccgov.org/Home/IndexPost?selected=vc",
+    "Solano": "https://www.solanocounty.gov/government/registrar-voters/sample-ballotpolling-place-lookup",
+    "Sonoma": "https://sonomacounty.gov/administrative-support-and-fiscal-services/registrar-of-voters/elections/where-to-vote-or-drop-off-your-ballot",
 }
+# Counties that still assign each voter one precinct polling place (not Voter's Choice Act vote-center counties)
+PRECINCT_COUNTIES = {"San Francisco", "Contra Costa", "Solano"}
 
 _jar = http.cookiejar.CookieJar()
 _opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_jar))
@@ -54,10 +57,10 @@ def county_for(address):
     name = m[0]["geographies"]["Counties"][0]["NAME"].replace(" County", "")
     return name, m[0]["matchedAddress"]
 
-def vote_centers(street, city, zip_):
+def vote_centers(street, city, zip_, dropoff=False):
     _ensure_session()
     q = urllib.parse.urlencode({"SearchAddress": street, "SearchCity": city, "SearchZip": zip_,
-                                "IsEarlyVoting": "true", "IsDropOffLocation": "false",
+                                "IsEarlyVoting": "false" if dropoff else "true", "IsDropOffLocation": "true" if dropoff else "false",
                                 "IsDefaultSearch": "false", "IsReset": "false"})
     raw = _get(SOS + "/Home/GetVoteCenters?" + q,
                {"X-Requested-With": "XMLHttpRequest", "Referer": SOS + "/"})
@@ -76,6 +79,28 @@ def neighborhood(lat, lon):
             return None
     return _hood_cache[k]
 
+MONTHS = {m: i + 1 for i, m in enumerate(["January", "February", "March", "April", "May", "June", "July", "August",
+                                           "September", "October", "November", "December"])}
+def site_kinds(hours, from_dropoff_query, is_dropoff):
+    """Election Day site, early voting site, ballot drop-off, from the SoS operationPeriod text."""
+    if from_dropoff_query: return {"drop"}
+    kinds = {"drop"} if is_dropoff else set()
+    eday, early = False, False
+    for seg in (hours or "").split(";"):
+        m = re.match(r"^(.*?):\s*(\d.*)$", seg.strip())
+        if not m: continue
+        d = m.group(1).strip()
+        if re.match(r"election day", d, re.I): eday = True; continue
+        for mo, day in re.findall(r"([A-Z][a-z]+)\s+(\d+)", d):
+            n = MONTHS.get(mo)
+            if not n: continue
+            if (n, int(day)) == (11, 3): eday = True
+            elif (n, int(day)) < (11, 3): early = True
+    if not hours or not (eday or early): eday = True
+    if eday: kinds.add("eday")
+    if early: kinds.add("early")
+    return kinds
+
 def lookup(params):
     street = params.get("street", "").strip()
     city = params.get("city", "").strip()
@@ -87,34 +112,54 @@ def lookup(params):
         county, matched = county_for(f"{street}, {city}, CA {zip_}".strip())
     except Exception:
         county, matched = None, None
-    allrows = sorted(vote_centers(street, city, zip_), key=lambda r: r.get("distanceToVoteCenter") or 999)
-    if county is None and allrows:
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(2) as ex:
+        fv = ex.submit(vote_centers, street, city, zip_, False)
+        fd = ex.submit(vote_centers, street, city, zip_, True)
+        vrows = fv.result()
+        try: drows = fd.result()
+        except Exception: drows = []
+    if county is None and (vrows or drows):
         ids = {v: k for k, v in COUNTY_IDS.items()}
-        county = ids.get(allrows[0].get("countyID"))
+        county = ids.get((vrows or drows)[0].get("countyID"))
     if county not in COUNTY_IDS:
         out = {"ok": False, "error": "outside_bay" if county else "address_not_found", "county": county}
-    else:
-        rows = [r for r in allrows if r.get("countyID") == COUNTY_IDS[county]]
-        rows.sort(key=lambda r: r.get("distanceToVoteCenter") or 999)
-        out = {"ok": True, "county": county, "matchedAddress": matched, "countyLookup": LOOKUPS.get(county),
-               "results": [{
-                   "name": re.sub(r"\s+", " ", r["voteCenterName"]).strip(),
-                   "address": ", ".join(x for x in [r.get("address1"), r.get("address2")] if x),
-                   "city": r.get("city", ""), "zip": r.get("zipCode", ""),
-                   "miles": r.get("distanceToVoteCenter"),
-                   "hours": r.get("operationPeriod", ""),
-                   "dropOff": bool(r.get("isDropOffLocation")),
-                   "sameDayRegistration": bool(r.get("isCVRAvailable")),
-                   "notes": r.get("locationNotes", ""),
-                   "lat": float(r["latitude"]) if r.get("latitude") else None,
-                   "lon": float(r["longitude"]) if r.get("longitude") else None,
-               } for r in rows[:8]]}
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(8) as ex:
-            hoods = list(ex.map(lambda x: neighborhood(x["lat"], x["lon"]), out["results"]))
-        for x, hd in zip(out["results"], hoods):
-            x["neighborhood"] = (hd or {}).get("name")
-            x["hoodCity"] = (hd or {}).get("city")
+        _cache[key] = (time.time(), out)
+        return out
+    sites = {}
+    for rows, from_drop in ((vrows, False), (drows, True)):
+        for r in rows:
+            if r.get("countyID") != COUNTY_IDS[county]: continue
+            name = re.sub(r"\s+", " ", r.get("voteCenterName") or "").strip()
+            addr = ", ".join(x for x in [r.get("address1"), r.get("address2")] if x)
+            k = (name.lower(), addr.lower())
+            kinds = site_kinds(r.get("operationPeriod", ""), from_drop, bool(r.get("isDropOffLocation")))
+            if k in sites:
+                sites[k]["kinds"] = sorted(set(sites[k]["kinds"]) | kinds)
+                if from_drop and r.get("operationPeriod"): sites[k]["dropHours"] = r.get("operationPeriod")
+                continue
+            sites[k] = {"name": name, "address": addr, "city": r.get("city", ""), "zip": r.get("zipCode", ""),
+                        "miles": r.get("distanceToVoteCenter"),
+                        "hours": "" if from_drop else r.get("operationPeriod", ""),
+                        "dropHours": r.get("operationPeriod", "") if from_drop else "",
+                        "dropOff": "drop" in kinds, "sameDayRegistration": bool(r.get("isCVRAvailable")),
+                        "notes": r.get("locationNotes", ""), "kinds": sorted(kinds),
+                        "lat": float(r["latitude"]) if r.get("latitude") else None,
+                        "lon": float(r["longitude"]) if r.get("longitude") else None}
+    near = lambda x: x["miles"] if x["miles"] is not None else 999
+    allsites = sorted(sites.values(), key=near)
+    keep, picked = [], set()
+    for kind in ("eday", "early", "drop"):          # nearest 6 of each kind
+        for x in [x for x in allsites if kind in x["kinds"]][:6]:
+            if id(x) not in picked: picked.add(id(x)); keep.append(x)
+    keep.sort(key=near)
+    out = {"ok": True, "county": county, "matchedAddress": matched, "countyLookup": LOOKUPS.get(county),
+           "precinct": county in PRECINCT_COUNTIES, "source": "https://caearlyvoting.sos.ca.gov/", "results": keep}
+    with ThreadPoolExecutor(8) as ex:
+        hoods_ = list(ex.map(lambda x: neighborhood(x["lat"], x["lon"]), keep))
+    for x, hd in zip(keep, hoods_):
+        x["neighborhood"] = (hd or {}).get("name")
+        x["hoodCity"] = (hd or {}).get("city")
     _cache[key] = (time.time(), out)
     return out
 
