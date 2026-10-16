@@ -90,7 +90,7 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .or{display:flex;align-items:center;gap:14px;color:#c4b5d9;font-size:15px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.22)}
 .rows{display:flex;flex-direction:column;gap:12px}
-.row{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:var(--purple-2);border:2px solid transparent;border-radius:12px;padding:16px 20px;color:#fff;text-decoration:none;cursor:pointer}
+.row{display:flex;align-items:flex-start;gap:16px;width:100%;text-align:left;background:var(--purple-2);border:2px solid transparent;border-radius:12px;padding:16px 20px;color:#fff;text-decoration:none;cursor:pointer}
 .row:hover{border-color:rgba(255,255,255,.25)}
 .row .ic{width:44px;height:44px;border-radius:6px;display:grid;place-items:center;font-weight:600;font-size:20px;flex:none}
 .ic.y{background:var(--yellow);color:var(--yellow-ink)} .ic.g{background:var(--green-soft);color:var(--green)}
@@ -228,11 +228,11 @@ h1{font-family:var(--head);font-weight:600;font-size:clamp(30px,4.4vw,40px);lett
 .promo-ic{font-size:26px;line-height:1}
 .radded{margin:8px 0 0;padding:10px 14px;border-radius:14px;background:#fff6d6;color:#3a3200;font-size:14.5px;line-height:1.45}
 .addtag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--yellow);color:var(--yellow-ink);vertical-align:2px}
-.vsec{margin:18px 0 6px}.vsec:first-child{margin-top:4px}
+.vsec{display:flex;flex-direction:column;gap:10px;margin:22px 0 4px}.vsec:first-child{margin-top:4px}.vsec>.vss,.vsec>.vsnote{margin-top:-6px}
 .vsh{font-family:var(--head);font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0;display:flex;align-items:center;gap:8px}
 .vsn{font:600 12px var(--body);background:rgba(255,255,255,.18);border-radius:999px;padding:2px 8px}
-.vss{margin:2px 0 10px;opacity:.8;font-size:14.5px}
-.vsnote{margin:0 0 10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.12);font-size:14.5px;line-height:1.45}.vsnote a,.vsrc a{color:inherit;text-decoration:underline}
+.vss{margin:0 0 4px;opacity:.8;font-size:14.5px}
+.vsnote{margin:0 0 4px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.12);font-size:14.5px;line-height:1.45}.vsnote a,.vsrc a{color:inherit;text-decoration:underline}
 .vsrc{margin:16px 0 0;font-size:13px;opacity:.75}
 .fromf{display:flex;flex-direction:column;gap:6px;margin:0}
 .froml{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
@@ -358,7 +358,7 @@ footer{color:var(--muted);font-size:13.5px;border-top:1px solid var(--line);padd
     </div>
 
     <p class="promo"><span class="promo-ic" aria-hidden="true">🎉</span><span><b>Get 25 voters in your group, and we'll pay up to $500 for your transportation to the polls.</b></span></p>
-    <footer>Confirm your polling place and hours with your state or local election office. SwayWay is nonpartisan and free, but does intend to make money. This information may not be accurate.</footer>
+    <footer>Confirm your polling place and hours with your state or local election office. SwayWay is nonpartisan and free, but does intend to make money 🤑🚀🦄. This information may not be accurate.</footer>
   </main>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -561,8 +561,23 @@ function buildingType(n){n=n.toLowerCase();
   return"";}
 function isElder(r){return buildingType(r.name)==="Senior center"||!!(r.access&&r.access.wheelchair==="yes"&&(r.access.seating||r.access.restroom||r.access.accessibleToilets==="yes"))}
 const BALLOT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v10H4zM8 11V4h8v7M10 7h4M9 15h6"/></svg>';
-function dropTags(r){const h=(r.dropHours||r.hours||"").trim();return h?`<span class="tag">${esc(h.replace(/(\d)(AM|PM)/g,"$1 $2"))}</span>`:'<span class="tag">Ballot drop-off</span>'}
-function vcTags(r,kind){const t=[];if(kind==="early"){const h=(r.hours||"").split(";").filter(x=>!/Election Day/i.test(x)).join("; ").trim();if(h)return `<span class="tag">${esc(h)}</span>`+(r.sameDayRegistration?'<span class="tag">Same-day registration</span>':"")}const bt=buildingType(r.name);if(bt)t.push(`<span class="tag">${bt}</span>`);const ed=(r.hours.match(/Election Day:\s*([^;]+)/)||[])[1];if(ed)t.push(`<span class="tag ed">Election Day ${esc(ed.replace(/(\d)(AM|PM)/g,"$1 $2"))}</span>`);
+const MON3={January:"Jan",February:"Feb",March:"Mar",April:"Apr",May:"May",June:"Jun",July:"Jul",August:"Aug",September:"Sep",October:"Oct",November:"Nov",December:"Dec"};
+const tidy=t=>t.replace(/(\d)\s*(AM|PM)/g,"$1 $2").replace(/\s*-\s*(?=\d)/g," – ").replace(/:00 /g," ");
+function hoursChips(h,opts){h=(h||"").trim();if(!h)return "";const segs=h.split(";").map(x=>x.trim()).filter(Boolean);
+  const ed=segs.find(x=>/^Election Day/i.test(x)),early=segs.filter(x=>!/^Election Day/i.test(x));const out=[];
+  if(early.length&&!(opts&&opts.noEarly)){const dates=early.map(x=>(x.match(/^(.*?):\s*\d/)||[])[1]||"").join(" - ").match(/[A-Z][a-z]+ \d+/g)||[];
+    const fmt=d=>d.replace(/^([A-Z][a-z]+)/,m=>MON3[m]||m);
+    const span=dates.length?(dates.length>1?`${fmt(dates[0])} – ${fmt(dates[dates.length-1])}`:fmt(dates[0])):"";
+    const one=early.length===1?tidy((early[0].match(/:\s*(\d.*)$/)||[])[1]||""):"";
+    let wk="";if(!one){const wd=new Set(),we=new Set();
+      for(const seg of early){const m=seg.match(/^(.*?):\s*(\d.*)$/);if(!m)continue;const t=tidy(m[2]);const ds=(m[1].match(/[A-Z][a-z]+ \d+/g)||[]).map(x=>{const q=x.match(/([A-Z][a-z]+) (\d+)/);return MONTHS[q[1]]!=null?new Date(2026,MONTHS[q[1]],+q[2]):null}).filter(Boolean);
+        if(!ds.length)continue;const end=ds[1]||ds[0];for(let d=new Date(ds[0]);d<=end;d.setDate(d.getDate()+1))((d.getDay()%6===0)?we:wd).add(t)}
+      if(wd.size===1&&we.size<=1)wk=`Weekdays ${[...wd][0]}${we.size?` · Weekends ${[...we][0]}`:""}`}
+    if(span)out.push(`<span class="tag" title="${esc(h)}">${esc(span)}${one?" · "+esc(one):wk?" · "+esc(wk):early.length>1?" · hours vary":""}</span>`)}
+  if(ed&&!(opts&&opts.noEday))out.push(`<span class="tag ed">Election Day ${esc(tidy(ed.replace(/^Election Day:\s*/i,"")))}</span>`);
+  return out.join("")}
+function dropTags(r){const c=hoursChips(r.dropHours||r.hours);return c||'<span class="tag">Ballot drop-off</span>'}
+function vcTags(r,kind){const t=[];if(kind==="early"){const c=hoursChips(r.hours,{noEday:true});if(c)return c+(r.sameDayRegistration?'<span class="tag">Same-day registration</span>':"")}const bt=buildingType(r.name);if(bt)t.push(`<span class="tag">${bt}</span>`);const ed=(r.hours.match(/Election Day:\s*([^;]+)/)||[])[1];if(ed)t.push(`<span class="tag ed">Election Day ${esc(ed.replace(/(\d)(AM|PM)/g,"$1 $2"))}</span>`);
   const first=(r.hours.match(/^([A-Z][a-z]+ \d+)/)||[])[1];if(first&&!/^Election/.test(r.hours))t.push(`<span class="tag">Early voting from ${esc(first)}</span>`);
   if(r.dropOff)t.push('<span class="tag">Ballot drop-off</span>');if(S.county==="Sonoma")t.push('<span class="tag ok">Curbside voting</span>');if(isElder(r))t.push('<span class="tag ok">Elder friendly</span>');t.push('<span class="tag">Translators available</span>');const hi=hoursInfo(r);if(hi.days)t.push(`<span class="tag">Open ${hi.days} day${hi.days>1?"s":""} before Election Day</span>`);if(hi.weekend)t.push('<span class="tag">Weekend hours</span>');if(hi.early)t.push('<span class="tag">Opens early</span>');if(hi.late)t.push('<span class="tag">Open late</span>');if(r.sameDayRegistration)t.push('<span class="tag">Same-day registration</span>');return t.join("")}
 let vcReq=0;
