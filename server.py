@@ -819,6 +819,52 @@ def _route(body):
     return {"ok": True, "start": start, "end": end, "legs": legs, "avoided": avoided, "skipped": skipped, "notes": notes,
             "miles": round(sum(l["miles"] for l in legs), 1), "minutes": sum(l["minutes"] for l in legs)}
 
+# ---------- Swarm: friends meeting up to vote together (prototype storage) ----------
+# Saved to a JSON file outside the web folder. On Render's free plan this file is
+# cleared when the app restarts, which is fine for a prototype.
+import secrets, tempfile
+SWARM_FILE = os.environ.get("SWARM_FILE", os.path.join(tempfile.gettempdir(), "swayway-swarms.json"))
+_swarm_lock = threading.Lock()
+try: _swarms = json.load(open(SWARM_FILE))
+except Exception: _swarms = {}
+
+def _clean(v, n=60): return re.sub(r"\s+", " ", str(v or "")).strip()[:n]
+
+def _swarm_save():
+    try:
+        tmp = SWARM_FILE + ".tmp"; json.dump(_swarms, open(tmp, "w")); os.replace(tmp, SWARM_FILE)
+    except Exception: pass
+
+def swarm_public(sw):
+    return {k: sw[k] for k in ("id", "host", "place", "time", "spot", "members", "created")}
+
+def swarm_create(b):
+    pl = b.get("place") or {}
+    if not pl.get("name") or pl.get("lat") is None: return {"ok": False, "error": "no_place"}
+    with _swarm_lock:
+        if len(_swarms) > 5000: return {"ok": False, "error": "full"}
+        want = re.sub(r"[^A-Za-z0-9_-]", "", str(b.get("id") or ""))[:12]
+        if want and want in _swarms: return {"ok": True, "swarm": swarm_public(_swarms[want])}
+        sid = want or secrets.token_urlsafe(5)
+        sw = {"id": sid, "host": _clean(b.get("host"), 40) or "A friend",
+              "place": {"name": _clean(pl.get("name"), 120), "addr": _clean(pl.get("addr"), 160), "lat": float(pl["lat"]), "lon": float(pl["lon"]),
+                        "hours": _clean(pl.get("hours"), 60)},
+              "time": _clean(b.get("time"), 12) or "12:30 PM", "spot": _clean(b.get("spot"), 80) or "Out front", "members": [], "created": int(time.time())}
+        _swarms[sid] = sw; _swarm_save()
+    return {"ok": True, "swarm": swarm_public(sw)}
+
+def swarm_join(b):
+    with _swarm_lock:
+        sw = _swarms.get(str(b.get("id")))
+        if not sw: return {"ok": False, "error": "not_found"}
+        mid = _clean(b.get("memberId"), 20) or secrets.token_urlsafe(5)
+        m = {"mid": mid, "name": _clean(b.get("name"), 40) or "Someone", "area": _clean(b.get("area"), 40),
+             "picks": [_clean(p, 60) for p in (b.get("picks") or [])][:10], "minutes": int(b.get("minutes") or 0) or None,
+             "leaveBy": _clean(b.get("leaveBy"), 12), "host": bool(b.get("host"))}
+        sw["members"] = [x for x in sw["members"] if x.get("mid") != mid][:49] + [m]
+        _swarm_save()
+    return {"ok": True, "memberId": mid, "swarm": swarm_public(sw)}
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k):
         super().__init__(*a, directory=ROOT, **k)
@@ -848,6 +894,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(code); self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
             return
+        if u.path == "/api/swarm":
+            sw = _swarms.get(urllib.parse.parse_qs(u.query).get("id", [""])[0])
+            out = {"ok": True, "swarm": swarm_public(sw)} if sw else {"ok": False, "error": "not_found"}
+            data = json.dumps(out).encode()
+            self.send_response(200 if sw else 404); self.send_header("Content-Type", "application/json"); self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+            return
         if u.path.startswith("/.build") or u.path.endswith(".py"):
             self.send_error(404)
             return
@@ -855,11 +908,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
-        if u.path != "/api/route":
+        handlers = {"/api/route": route, "/api/swarm/create": swarm_create, "/api/swarm/join": swarm_join}
+        if u.path not in handlers:
             self.send_error(404); return
         try:
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)) or 0) or b"{}")
-            out, code = route(body), 200
+            n = int(self.headers.get("Content-Length", 0) or 0)
+            if n > 200000: raise ValueError("too large")
+            body = json.loads(self.rfile.read(n) or b"{}")
+            out, code = handlers[u.path](body), 200
         except Exception as e:
             out, code = {"ok": False, "error": "route_failed", "detail": str(e)[:200]}, 502
         data = json.dumps(out).encode()
